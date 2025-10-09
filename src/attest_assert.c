@@ -516,7 +516,7 @@ static const char* att_status_name(att_status status)
 	}
 }
 
-void att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
+bool att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
     const char* name_value, int min, int max, att_status status, const att_result* result)
 {
 	int failures = result ? result->failed : 0;
@@ -528,7 +528,7 @@ void att_handle_subtest_expect(const char* assertion, const char* file, int line
 
 	att_context_record_assert(false, passed);
 	if (passed) {
-		return;
+		return true;
 	}
 
 	char expected_buf[64];
@@ -544,6 +544,7 @@ void att_handle_subtest_expect(const char* assertion, const char* file, int line
 	const char* name_desc = name_expr ? name_expr : "name";
 
 	att_report_failure(false, assertion, file, line, expected_buf, actual_buf, expr_buf, name_desc, sub_name);
+	return false;
 }
 
 static void att_prepare_subtest_result(const att_test_result* in, att_result* out, att_status status)
@@ -623,4 +624,15 @@ att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_
 
 	g_ctx = saved;
 	return status;
+}
+
+void att_replay_captured(const att_captured* captured)
+{
+	if (!captured || !captured->data || captured->size == 0) {
+		return;
+	}
+	fwrite(captured->data, 1, captured->size, stderr);
+	if (captured->data[captured->size - 1] != '\n') {
+		fputc('\n', stderr);
+	}
 }

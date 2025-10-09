@@ -62,8 +62,9 @@ void att_handle_memory(const char* assertion, const char* file, int line, bool f
     const void* lhs, const void* rhs, size_t size, const char* lhs_expr, const char* rhs_expr);
 void att_handle_near(const char* assertion, const char* file, int line, bool fatal,
     double lhs, double rhs, double epsilon, const char* lhs_expr, const char* rhs_expr, const char* eps_expr);
-void att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
+bool att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
     const char* name_value, int min, int max, att_status status, const att_result* result);
+void att_replay_captured(const att_captured* captured);
 void att_register_manual(const att_register_fn* fns, size_t count);
 
 #define ATT_GENERIC_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
@@ -192,10 +193,19 @@ void att_register_manual(const att_register_fn* fns, size_t count);
 
 #define ATT_EXPECT_SUBTEST_FAILS(name, block, min, max) \
 	do { \
+		att_captured att__captured = {0}; \
+		int att__capture_active = (att_capture_begin() == 0); \
 		att_result att__sub_result; \
 		att_status att__sub_status = att_run_subtest((name), (block), NULL, &att__sub_result); \
-		att_handle_subtest_expect("ATT_EXPECT_SUBTEST_FAILS(" #name ", " #min ", " #max ")", \
-		    __FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result); \
+		if (att__capture_active) { \
+			att_capture_end(&att__captured); \
+		} \
+		if (!att_handle_subtest_expect("ATT_EXPECT_SUBTEST_FAILS(" #name ", " #min ", " #max ")", \
+		        __FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result)) { \
+			if (att__capture_active) { \
+				att_replay_captured(&att__captured); \
+			} \
+		} \
 	} while (0)
 
 #define ATT_CONCAT_INNER(a, b) a##b
