@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,8 @@ int att_subtest_scope_protect(att_subtest_scope *scope);
 att_status att_subtest_scope_leave(att_subtest_scope *scope, att_result *out);
 
 typedef struct att_captured {
-	const char *data;
+	/* Caller owns `data` and must free it with `free` when done. */
+	char *data;
 	size_t size;
 } att_captured;
 
@@ -207,11 +209,13 @@ void att_register_manual(const att_register_fn *fns, size_t count);
 		if (att__capture_active) {                                                                     \
 			att_capture_end(&att__captured);                                                           \
 		}                                                                                              \
-		if (!att_handle_subtest_expect("ATT_EXPECT_SUBTEST_FAILS(" #name ", " #min ", " #max ")",      \
-				__FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result)) { \
-			if (att__capture_active) {                                                                 \
-				att_replay_captured(&att__captured);                                                   \
-			}                                                                                          \
+		bool att__sub_expect_ok = att_handle_subtest_expect("ATT_EXPECT_SUBTEST_FAILS(" #name ", " #min ", " #max ")", \
+			__FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result);                          \
+		if (!att__sub_expect_ok && att__capture_active) {                                                                     \
+			att_replay_captured(&att__captured);                                                                              \
+		}                                                                                              \
+		if (att__capture_active && att__captured.data) {                                               \
+			free(att__captured.data);                                                                  \
 		}                                                                                              \
 	} while (0)
 

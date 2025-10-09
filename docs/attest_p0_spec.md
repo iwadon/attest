@@ -138,12 +138,12 @@ ATT_EXPECT_SUBTEST_FAILS(name, block, min, max)
 
 ## 9. 出力捕捉 API
 ```c
-typedef struct { const char* data; size_t size; } att_captured;
+typedef struct { char* data; size_t size; } att_captured;
 int att_capture_begin(void);
 int att_capture_end(att_captured* out);
 ```
 - `stderr` を内部バッファに切替。ネスト不可。
-- `att_capture_end` で文字列取得（ライフタイム：次の begin まで）。
+- `att_capture_end` で文字列取得（呼び出し側が `free` で解放すること）。
 
 ---
 
@@ -169,4 +169,3 @@ int att_capture_end(att_captured* out);
 5. `--no-color` 有効。
 6. `att_run_subtest` と `att_capture_*` で自己テスト可能。
 7. 終了コード仕様通り。
-

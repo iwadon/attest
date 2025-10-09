@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "attest/attest.h"
@@ -129,6 +130,7 @@ TEST(Output, EqualityFailureFormatting)
 
 	const char *expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
 	ASSERT_TRUE(expr_line != NULL);
+	free(captured.data);
 }
 
 TEST(Capture, CapturesStderr)
@@ -141,6 +143,7 @@ TEST(Capture, CapturesStderr)
 	size_t expected = strlen("capture-test\n");
 	EXPECT_EQ((int)expected, (int)captured.size);
 	EXPECT_EQ(0, strncmp(captured.data, "capture-test\n", expected));
+	free(captured.data);
 }
 
 int main(int argc, char **argv)

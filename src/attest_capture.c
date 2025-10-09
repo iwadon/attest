@@ -1,3 +1,7 @@
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,8 +26,6 @@
 typedef struct att_capture_state {
 	int original_fd;
 	FILE *temp;
-	char *buffer;
-	size_t size;
 	int active;
 } att_capture_state;
 
@@ -33,12 +35,6 @@ int att_capture_begin(void)
 {
 	if (g_capture.active) {
 		return -1;
-	}
-
-	if (g_capture.buffer) {
-		free(g_capture.buffer);
-		g_capture.buffer = NULL;
-		g_capture.size = 0;
 	}
 
 	fflush(stderr);
@@ -138,12 +134,11 @@ int att_capture_end(att_captured *out)
 	g_capture.temp = NULL;
 	g_capture.active = 0;
 
-	g_capture.buffer = buffer;
-	g_capture.size = read;
-
 	if (out) {
 		out->data = buffer;
 		out->size = read;
+	} else {
+		free(buffer);
 	}
 
 	return 0;
