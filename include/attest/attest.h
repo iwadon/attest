@@ -29,6 +29,10 @@ typedef void (*att_register_fn)(void);
 int attest_main(int argc, char** argv);
 
 att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_result* out);
+typedef struct att_subtest_scope att_subtest_scope;
+att_subtest_scope* att_subtest_scope_enter(const char* name);
+int att_subtest_scope_protect(att_subtest_scope* scope);
+att_status att_subtest_scope_leave(att_subtest_scope* scope, att_result* out);
 
 typedef struct att_captured {
     const char* data;
@@ -195,8 +199,12 @@ void att_register_manual(const att_register_fn* fns, size_t count);
 	do { \
 		att_captured att__captured = {0}; \
 		int att__capture_active = (att_capture_begin() == 0); \
+		att_subtest_scope* att__scope = att_subtest_scope_enter((name)); \
 		att_result att__sub_result; \
-		att_status att__sub_status = att_run_subtest((name), (block), NULL, &att__sub_result); \
+		if (att_subtest_scope_protect(att__scope) == 0) { \
+			block \
+		} \
+		att_status att__sub_status = att_subtest_scope_leave(att__scope, &att__sub_result); \
 		if (att__capture_active) { \
 			att_capture_end(&att__captured); \
 		} \

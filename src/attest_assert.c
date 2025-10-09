@@ -167,6 +167,7 @@ static void att_build_expr(char* buffer, size_t size, const char* lhs_expr, cons
 	snprintf(buffer, size, "%s=%s, %s=%s", lhs_expr, lhs_value->text, rhs_expr, rhs_value->text);
 }
 
+
 static void att_report_failure(bool fatal, const char* assertion, const char* file, int line, const char* expected, const char* actual, const char* expr_detail, const char* extra_label, const char* extra_value)
 {
 	const att_test_case* test = att_context_current_test();
@@ -560,19 +561,33 @@ static void att_prepare_subtest_result(const att_test_result* in, att_result* ou
 	out->status = status;
 }
 
-att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_result* out)
+struct att_subtest_scope {
+	att_context_state saved;
+	att_test_case temp;
+	char* fullname;
+	bool active;
+};
+
+static att_subtest_scope* att_subtest_scope_allocate(void)
 {
-	if (!fn) {
-		if (out) {
-			memset(out, 0, sizeof(*out));
-			out->status = ATT_STATUS_FAIL;
-		}
-		return ATT_STATUS_FAIL;
+	att_subtest_scope* scope = malloc(sizeof(*scope));
+	if (scope) {
+		memset(scope, 0, sizeof(*scope));
+	}
+	return scope;
+}
+
+att_subtest_scope* att_subtest_scope_enter(const char* name)
+{
+	att_subtest_scope* scope = att_subtest_scope_allocate();
+	if (!scope) {
+		return NULL;
 	}
 
-	att_context_state saved = g_ctx;
+	scope->saved = g_ctx;
 
-	const char* parent_name = (saved.active && saved.test && saved.test->fullname) ? saved.test->fullname : "(test)";
+	const char* parent_suite = (g_ctx.active && g_ctx.test && g_ctx.test->suite) ? g_ctx.test->suite : "<subtest>";
+	const char* parent_name = (g_ctx.active && g_ctx.test && g_ctx.test->fullname) ? g_ctx.test->fullname : "(test)";
 	const char* sub_name = name ? name : "subtest";
 
 	size_t parent_len = strlen(parent_name);
@@ -580,34 +595,43 @@ att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_
 	size_t total_len = parent_len + 3 + sub_len;
 
 	char* full_name = malloc(total_len + 1);
-	if (!full_name) {
+	if (full_name) {
+		snprintf(full_name, total_len + 1, "%s / %s", parent_name, sub_name);
+	}
+	scope->fullname = full_name;
+
+	scope->temp.suite = parent_suite;
+	scope->temp.name = sub_name;
+	scope->temp.fullname = full_name ? full_name : sub_name;
+	scope->temp.file = (g_ctx.active && g_ctx.test && g_ctx.test->file) ? g_ctx.test->file : "";
+	scope->temp.line = (g_ctx.active && g_ctx.test) ? g_ctx.test->line : 0;
+	scope->temp.fn = NULL;
+
+	bool color = att_context_color_enabled();
+	att_context_begin(&scope->temp, color);
+	scope->active = true;
+	return scope;
+}
+
+int att_subtest_scope_protect(att_subtest_scope* scope)
+{
+	if (!scope || !scope->active) {
+		return 1;
+	}
+	return att_context_protect();
+}
+
+static att_status att_subtest_scope_finalize(att_subtest_scope* scope, att_result* out)
+{
+	if (!scope || !scope->active) {
 		if (out) {
 			memset(out, 0, sizeof(*out));
 			out->status = ATT_STATUS_ABORTED;
 		}
 		return ATT_STATUS_ABORTED;
 	}
-	snprintf(full_name, total_len + 1, "%s / %s", parent_name, sub_name);
 
-	const char* suite = (saved.active && saved.test && saved.test->suite) ? saved.test->suite : "<subtest>";
-	const char* file = (saved.active && saved.test && saved.test->file) ? saved.test->file : "";
-	int line = (saved.active && saved.test) ? saved.test->line : 0;
-	bool color = saved.active ? saved.color_enabled : true;
-
-	att_test_case temp = {
-	    .suite = suite,
-	    .name = sub_name,
-	    .fullname = full_name,
-	    .file = file,
-	    .line = line,
-	    .fn = NULL,
-	};
-
-	att_context_begin(&temp, color);
 	att_test_result sub_result;
-	if (att_context_protect() == 0) {
-		fn(user);
-	}
 	att_context_end(&sub_result);
 
 	att_status status;
@@ -620,10 +644,44 @@ att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_
 	}
 
 	att_prepare_subtest_result(&sub_result, out, status);
-	free(full_name);
-
-	g_ctx = saved;
+	scope->active = false;
+	g_ctx = scope->saved;
 	return status;
+}
+
+att_status att_subtest_scope_leave(att_subtest_scope* scope, att_result* out)
+{
+	att_status status = ATT_STATUS_ABORTED;
+	if (scope) {
+		status = att_subtest_scope_finalize(scope, out);
+		if (scope->fullname) {
+			free(scope->fullname);
+		}
+		free(scope);
+	} else {
+		if (out) {
+			memset(out, 0, sizeof(*out));
+			out->status = ATT_STATUS_ABORTED;
+		}
+	}
+	return status;
+}
+
+att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_result* out)
+{
+	if (!fn) {
+		if (out) {
+			memset(out, 0, sizeof(*out));
+			out->status = ATT_STATUS_FAIL;
+		}
+		return ATT_STATUS_FAIL;
+	}
+
+	att_subtest_scope* scope = att_subtest_scope_enter(name);
+	if (att_subtest_scope_protect(scope) == 0) {
+		fn(user);
+	}
+	return att_subtest_scope_leave(scope, out);
 }
 
 void att_replay_captured(const att_captured* captured)

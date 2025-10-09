@@ -18,7 +18,9 @@ static void att_subtest_fatal(void* user)
 static void att_macro_mismatch(void* user)
 {
 	(void)user;
-	ATT_EXPECT_SUBTEST_FAILS("nonfatal", att_subtest_nonfatal, 0, 0);
+	ATT_EXPECT_SUBTEST_FAILS("nonfatal", {
+		att_subtest_nonfatal(NULL);
+	}, 0, 0);
 }
 
 static int g_manual_counter;
@@ -100,7 +102,9 @@ TEST(Subtest, RecordsAbort)
 
 TEST(Subtest, ExpectFailsMacroPasses)
 {
-	ATT_EXPECT_SUBTEST_FAILS("nonfatal", att_subtest_nonfatal, 1, 1);
+	ATT_EXPECT_SUBTEST_FAILS("nonfatal", {
+		EXPECT_TRUE(0);
+	}, 1, 1);
 }
 
 TEST(Subtest, ExpectFailsMacroRegistersFailure)
