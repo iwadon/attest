@@ -174,21 +174,22 @@ static void att_report_failure(bool fatal, const char* assertion, const char* fi
 	const char* fail_color = att_color_fail();
 	const char* file_color = att_color_file();
 	const char* reset = att_color_reset();
+	FILE* out = stderr;
 
-	printf("%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
-	printf("%s  %s:%d: %s failed%s%s\n",
+	fprintf(out, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
+	fprintf(out, "%s  %s:%d: %s failed%s%s\n",
 	    file_color,
 	    file,
 	    line,
 	    assertion,
 	    fatal ? " (fatal)." : ".",
 	    reset);
-	printf("    expected: %s\n", expected);
-	printf("      actual: %s\n", actual);
+	fprintf(out, "    expected: %s\n", expected);
+	fprintf(out, "      actual: %s\n", actual);
 	if (extra_label && extra_value) {
-		printf("    %s: %s\n", extra_label, extra_value);
+		fprintf(out, "    %s: %s\n", extra_label, extra_value);
 	}
-	printf("    expr: %s\n", expr_detail);
+	fprintf(out, "    expr: %s\n", expr_detail);
 }
 
 static bool att_compare_values(int op, long long lhs, long long rhs)
@@ -243,7 +244,7 @@ void att_handle_compare_signed(int op, const char* assertion, const char* file, 
 	att_formatted rhs_fmt = att_format_signed(rhs);
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, rhs_fmt.text, lhs_fmt.text, expr, NULL, NULL);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -261,7 +262,7 @@ void att_handle_compare_unsigned(int op, const char* assertion, const char* file
 	att_formatted rhs_fmt = att_format_unsigned(rhs);
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, rhs_fmt.text, lhs_fmt.text, expr, NULL, NULL);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -299,7 +300,7 @@ void att_handle_compare_double(int op, const char* assertion, const char* file, 
 	att_formatted rhs_fmt = att_format_double(rhs);
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, rhs_fmt.text, lhs_fmt.text, expr, NULL, NULL);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -344,7 +345,7 @@ void att_handle_compare_pointer(int op, const char* assertion, const char* file,
 	att_formatted rhs_fmt = att_format_pointer(rhs);
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, rhs_fmt.text, lhs_fmt.text, expr, NULL, NULL);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -393,7 +394,7 @@ void att_handle_string(int op, const char* assertion, const char* file, int line
 	att_formatted rhs_fmt = att_format_string(rhs);
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, rhs_fmt.text, lhs_fmt.text, expr, NULL, NULL);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}

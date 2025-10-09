@@ -21,6 +21,14 @@ static void att_macro_mismatch(void* user)
 	ATT_EXPECT_SUBTEST_FAILS("nonfatal", att_subtest_nonfatal, 0, 0);
 }
 
+static void att_formatting_eq_failure(void* user)
+{
+	(void)user;
+	int expected = 42;
+	int actual = 24;
+	EXPECT_EQ(expected, actual);
+}
+
 TEST(Sanity, Passes)
 {
 	/* Placeholder test used to verify registration flow. */
@@ -88,6 +96,26 @@ TEST(Subtest, ExpectFailsMacroRegistersFailure)
 	att_status status = att_run_subtest("macro mismatch", att_macro_mismatch, NULL, &result);
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	EXPECT_EQ(1, result.nonfatal_failures);
+}
+
+TEST(Output, EqualityFailureFormatting)
+{
+	ASSERT_EQ(0, att_capture_begin());
+	att_result result;
+	att_status status = att_run_subtest("formatting", att_formatting_eq_failure, NULL, &result);
+	att_captured captured;
+	ASSERT_EQ(0, att_capture_end(&captured));
+	ASSERT_EQ(ATT_STATUS_FAIL, status);
+	ASSERT_TRUE(captured.data != NULL);
+
+	const char* expected_line = strstr(captured.data, "    expected: 42");
+	ASSERT_TRUE(expected_line != NULL);
+	const char* actual_line = strstr(captured.data, "      actual: 24");
+	ASSERT_TRUE(actual_line != NULL);
+	EXPECT_TRUE(expected_line < actual_line);
+
+	const char* expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
+	ASSERT_TRUE(expr_line != NULL);
 }
 
 TEST(Capture, CapturesStderr)
