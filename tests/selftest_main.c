@@ -21,6 +21,19 @@ static void att_macro_mismatch(void* user)
 	ATT_EXPECT_SUBTEST_FAILS("nonfatal", att_subtest_nonfatal, 0, 0);
 }
 
+static int g_manual_counter;
+
+static void manual_registered_test(void)
+{
+	g_manual_counter += 1;
+	ASSERT_TRUE(g_manual_counter > 0);
+}
+
+static void manual_register_function(void)
+{
+	att_register_test("Manual", "RegistersViaMacro", manual_registered_test, __FILE__, __LINE__);
+}
+
 static void att_formatting_eq_failure(void* user)
 {
 	(void)user;
@@ -132,5 +145,6 @@ TEST(Capture, CapturesStderr)
 
 int main(int argc, char** argv)
 {
+	ATT_REGISTER_TESTS(manual_register_function);
 	return attest_main(argc, argv);
 }

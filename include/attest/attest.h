@@ -24,6 +24,7 @@ typedef struct att_result {
 } att_result;
 
 typedef void (*att_test_fn)(void);
+typedef void (*att_register_fn)(void);
 
 int attest_main(int argc, char** argv);
 
@@ -63,6 +64,7 @@ void att_handle_near(const char* assertion, const char* file, int line, bool fat
     double lhs, double rhs, double epsilon, const char* lhs_expr, const char* rhs_expr, const char* eps_expr);
 void att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
     const char* name_value, int min, int max, att_status status, const att_result* result);
+void att_register_manual(const att_register_fn* fns, size_t count);
 
 #define ATT_GENERIC_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
 	_Generic((lhs_value), \
@@ -198,6 +200,8 @@ void att_handle_subtest_expect(const char* assertion, const char* file, int line
 
 #define ATT_CONCAT_INNER(a, b) a##b
 #define ATT_CONCAT(a, b) ATT_CONCAT_INNER(a, b)
+#define ATT_CONCAT3(a, b, c) ATT_CONCAT(ATT_CONCAT(a, b), c)
+#define ATT_SUFFIX(name) _##name
 
 #if defined(__COUNTER__)
 #define ATT_UNIQUE_ID(prefix) ATT_CONCAT(prefix, __COUNTER__)
@@ -219,6 +223,9 @@ void att_handle_subtest_expect(const char* assertion, const char* file, int line
 #define ATT_AUTOREG(fn) static void fn(void)
 #endif
 
+#define ATT_TEST_FN_NAME(Suite, Name) ATT_CONCAT3(att_test_fn_, Suite, ATT_SUFFIX(Name))
+#define ATT_REGISTER_FN_NAME(Suite, Name) ATT_CONCAT3(att_register_, Suite, ATT_SUFFIX(Name))
+
 #define ATT_TEST_IMPL(suite, name, fn_symbol, reg_symbol)         \
 	static void fn_symbol(void);                                  \
 	ATT_AUTOREG(reg_symbol)                                       \
@@ -228,7 +235,15 @@ void att_handle_subtest_expect(const char* assertion, const char* file, int line
 	static void fn_symbol(void)
 
 #define ATT_TEST(Suite, Name) \
-	ATT_TEST_IMPL(#Suite, #Name, ATT_UNIQUE_ID(att_test_fn_), ATT_UNIQUE_ID(att_register_))
+	ATT_TEST_IMPL(#Suite, #Name, ATT_TEST_FN_NAME(Suite, Name), ATT_REGISTER_FN_NAME(Suite, Name))
+
+#define ATT_TEST_REF(Suite, Name) ATT_REGISTER_FN_NAME(Suite, Name)
+
+#define ATT_REGISTER_TESTS(...) \
+	do { \
+		const att_register_fn att__manual_fns[] = { __VA_ARGS__ }; \
+		att_register_manual(att__manual_fns, sizeof(att__manual_fns) / sizeof(att__manual_fns[0])); \
+	} while (0)
 
 #define TEST(Suite, Name) ATT_TEST(Suite, Name)
 

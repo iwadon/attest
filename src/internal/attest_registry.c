@@ -113,3 +113,15 @@ void att_register_test(const char* suite, const char* name, att_test_fn fn, cons
 {
 	att_registry_add(suite, name, fn, file, line, NULL);
 }
+
+void att_register_manual(const att_register_fn* fns, size_t count)
+{
+	if (!fns) {
+		return;
+	}
+	for (size_t i = 0; i < count; ++i) {
+		if (fns[i]) {
+			fns[i]();
+		}
+	}
+}
