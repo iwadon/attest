@@ -3,24 +3,22 @@
 
 #include "attest/attest.h"
 
-static void att_subtest_nonfatal(void* user)
+static void att_subtest_nonfatal(void *user)
 {
 	(void)user;
 	EXPECT_TRUE(0);
 }
 
-static void att_subtest_fatal(void* user)
+static void att_subtest_fatal(void *user)
 {
 	(void)user;
 	ASSERT_TRUE(0);
 }
 
-static void att_macro_mismatch(void* user)
+static void att_macro_mismatch(void *user)
 {
 	(void)user;
-	ATT_EXPECT_SUBTEST_FAILS("nonfatal", {
-		att_subtest_nonfatal(NULL);
-	}, 0, 0);
+	ATT_EXPECT_SUBTEST_FAILS("nonfatal", { att_subtest_nonfatal(NULL); }, 0, 0);
 }
 
 static int g_manual_counter;
@@ -36,7 +34,7 @@ static void manual_register_function(void)
 	att_register_test("Manual", "RegistersViaMacro", manual_registered_test, __FILE__, __LINE__);
 }
 
-static void att_formatting_eq_failure(void* user)
+static void att_formatting_eq_failure(void *user)
 {
 	(void)user;
 	int expected = 42;
@@ -64,16 +62,16 @@ TEST(Assert, Booleans)
 
 TEST(Assert, Strings)
 {
-	const char* lhs = "attest";
-	const char* rhs = "attest";
+	const char *lhs = "attest";
+	const char *rhs = "attest";
 	ASSERT_STREQ(lhs, rhs);
 	EXPECT_STRNE(lhs, "other");
 }
 
 TEST(Assert, Memory)
 {
-	unsigned char lhs[] = {1, 2, 3, 4};
-	unsigned char rhs[] = {1, 2, 3, 4};
+	unsigned char lhs[] = { 1, 2, 3, 4 };
+	unsigned char rhs[] = { 1, 2, 3, 4 };
 	ASSERT_MEMEQ(lhs, rhs, sizeof(lhs));
 	EXPECT_MEMEQ(NULL, NULL, 0);
 }
@@ -102,9 +100,7 @@ TEST(Subtest, RecordsAbort)
 
 TEST(Subtest, ExpectFailsMacroPasses)
 {
-	ATT_EXPECT_SUBTEST_FAILS("nonfatal", {
-		EXPECT_TRUE(0);
-	}, 1, 1);
+	ATT_EXPECT_SUBTEST_FAILS("nonfatal", { EXPECT_TRUE(0); }, 1, 1);
 }
 
 TEST(Subtest, ExpectFailsMacroRegistersFailure)
@@ -125,13 +121,13 @@ TEST(Output, EqualityFailureFormatting)
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	ASSERT_TRUE(captured.data != NULL);
 
-	const char* expected_line = strstr(captured.data, "    expected: 42");
+	const char *expected_line = strstr(captured.data, "    expected: 42");
 	ASSERT_TRUE(expected_line != NULL);
-	const char* actual_line = strstr(captured.data, "      actual: 24");
+	const char *actual_line = strstr(captured.data, "      actual: 24");
 	ASSERT_TRUE(actual_line != NULL);
 	EXPECT_TRUE(expected_line < actual_line);
 
-	const char* expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
+	const char *expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
 	ASSERT_TRUE(expr_line != NULL);
 }
 
@@ -147,7 +143,7 @@ TEST(Capture, CapturesStderr)
 	EXPECT_EQ(0, strncmp(captured.data, "capture-test\n", expected));
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 	ATT_REGISTER_TESTS(manual_register_function);
 	return attest_main(argc, argv);

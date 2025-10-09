@@ -2,17 +2,17 @@
 #include <math.h>
 #include <setjmp.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 #include "attest/attest.h"
 #include "internal/attest_context.h"
 #include "internal/attest_internal.h"
 
 typedef struct att_context_state {
-	const att_test_case* test;
+	const att_test_case *test;
 	bool active;
 	bool color_enabled;
 	jmp_buf abort_env;
@@ -21,7 +21,7 @@ typedef struct att_context_state {
 
 static att_context_state g_ctx;
 
-void att_context_begin(const att_test_case* test, bool color_enabled)
+void att_context_begin(const att_test_case *test, bool color_enabled)
 {
 	memset(&g_ctx, 0, sizeof(g_ctx));
 	g_ctx.test = test;
@@ -34,7 +34,7 @@ int att_context_protect(void)
 	return setjmp(g_ctx.abort_env);
 }
 
-void att_context_end(att_test_result* out_result)
+void att_context_end(att_test_result *out_result)
 {
 	if (out_result) {
 		*out_result = g_ctx.result;
@@ -79,29 +79,29 @@ bool att_context_color_enabled(void)
 	return g_ctx.color_enabled;
 }
 
-const att_test_case* att_context_current_test(void)
+const att_test_case *att_context_current_test(void)
 {
 	return g_ctx.test;
 }
 
-static const char* att_color_fail(void)
+static const char *att_color_fail(void)
 {
 	return att_context_color_enabled() ? "\033[31m" : "";
 }
 
-static const char* att_color_file(void)
+static const char *att_color_file(void)
 {
 	return att_context_color_enabled() ? "\033[90m" : "";
 }
 
-static const char* att_color_reset(void)
+static const char *att_color_reset(void)
 {
 	return att_context_color_enabled() ? "\033[0m" : "";
 }
 
 typedef struct att_formatted {
 	char buffer[128];
-	const char* text;
+	const char *text;
 } att_formatted;
 
 static att_formatted att_format_signed(long long value)
@@ -128,7 +128,7 @@ static att_formatted att_format_double(double value)
 	return fmt;
 }
 
-static att_formatted att_format_pointer(const void* value)
+static att_formatted att_format_pointer(const void *value)
 {
 	att_formatted fmt;
 	if (!value) {
@@ -149,7 +149,7 @@ static att_formatted att_format_bool(bool value)
 	return fmt;
 }
 
-static att_formatted att_format_string(const char* value)
+static att_formatted att_format_string(const char *value)
 {
 	att_formatted fmt;
 	if (!value) {
@@ -162,29 +162,28 @@ static att_formatted att_format_string(const char* value)
 	return fmt;
 }
 
-static void att_build_expr(char* buffer, size_t size, const char* lhs_expr, const att_formatted* lhs_value, const char* rhs_expr, const att_formatted* rhs_value)
+static void att_build_expr(char *buffer, size_t size, const char *lhs_expr, const att_formatted *lhs_value, const char *rhs_expr, const att_formatted *rhs_value)
 {
 	snprintf(buffer, size, "%s=%s, %s=%s", lhs_expr, lhs_value->text, rhs_expr, rhs_value->text);
 }
 
-
-static void att_report_failure(bool fatal, const char* assertion, const char* file, int line, const char* expected, const char* actual, const char* expr_detail, const char* extra_label, const char* extra_value)
+static void att_report_failure(bool fatal, const char *assertion, const char *file, int line, const char *expected, const char *actual, const char *expr_detail, const char *extra_label, const char *extra_value)
 {
-	const att_test_case* test = att_context_current_test();
-	const char* test_name = test ? test->fullname : "<unknown>";
-	const char* fail_color = att_color_fail();
-	const char* file_color = att_color_file();
-	const char* reset = att_color_reset();
-	FILE* out = stderr;
+	const att_test_case *test = att_context_current_test();
+	const char *test_name = test ? test->fullname : "<unknown>";
+	const char *fail_color = att_color_fail();
+	const char *file_color = att_color_file();
+	const char *reset = att_color_reset();
+	FILE *out = stderr;
 
 	fprintf(out, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
 	fprintf(out, "%s  %s:%d: %s failed%s%s\n",
-	    file_color,
-	    file,
-	    line,
-	    assertion,
-	    fatal ? " (fatal)." : ".",
-	    reset);
+		file_color,
+		file,
+		line,
+		assertion,
+		fatal ? " (fatal)." : ".",
+		reset);
 	fprintf(out, "    expected: %s\n", expected);
 	fprintf(out, "      actual: %s\n", actual);
 	if (extra_label && extra_value) {
@@ -233,7 +232,7 @@ static bool att_compare_unsigned_values(int op, unsigned long long lhs, unsigned
 	}
 }
 
-void att_handle_compare_signed(int op, const char* assertion, const char* file, int line, bool fatal, const char* lhs_expr, const char* rhs_expr, long long lhs, long long rhs)
+void att_handle_compare_signed(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long long lhs, long long rhs)
 {
 	bool passed = att_compare_values(op, lhs, rhs);
 	att_context_record_assert(fatal, passed);
@@ -251,7 +250,7 @@ void att_handle_compare_signed(int op, const char* assertion, const char* file, 
 	}
 }
 
-void att_handle_compare_unsigned(int op, const char* assertion, const char* file, int line, bool fatal, const char* lhs_expr, const char* rhs_expr, unsigned long long lhs, unsigned long long rhs)
+void att_handle_compare_unsigned(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, unsigned long long lhs, unsigned long long rhs)
 {
 	bool passed = att_compare_unsigned_values(op, lhs, rhs);
 	att_context_record_assert(fatal, passed);
@@ -289,7 +288,7 @@ static bool att_compare_double_values(int op, double lhs, double rhs)
 	}
 }
 
-void att_handle_compare_double(int op, const char* assertion, const char* file, int line, bool fatal, const char* lhs_expr, const char* rhs_expr, double lhs, double rhs)
+void att_handle_compare_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, double lhs, double rhs)
 {
 	bool passed = att_compare_double_values(op, lhs, rhs);
 	att_context_record_assert(fatal, passed);
@@ -307,7 +306,7 @@ void att_handle_compare_double(int op, const char* assertion, const char* file, 
 	}
 }
 
-void att_handle_compare_pointer(int op, const char* assertion, const char* file, int line, bool fatal, const char* lhs_expr, const char* rhs_expr, const void* lhs, const void* rhs)
+void att_handle_compare_pointer(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const void *lhs, const void *rhs)
 {
 	uintptr_t lhs_addr = (uintptr_t)lhs;
 	uintptr_t rhs_addr = (uintptr_t)rhs;
@@ -352,7 +351,7 @@ void att_handle_compare_pointer(int op, const char* assertion, const char* file,
 	}
 }
 
-void att_handle_truth(const char* assertion, const char* file, int line, bool fatal, bool value, bool expect_true, const char* expr)
+void att_handle_truth(const char *assertion, const char *file, int line, bool fatal, bool value, bool expect_true, const char *expr)
 {
 	bool passed = (value == expect_true);
 	att_context_record_assert(fatal, passed);
@@ -370,7 +369,7 @@ void att_handle_truth(const char* assertion, const char* file, int line, bool fa
 	}
 }
 
-static bool att_strings_equal(const char* lhs, const char* rhs)
+static bool att_strings_equal(const char *lhs, const char *rhs)
 {
 	if (lhs == NULL && rhs == NULL) {
 		return true;
@@ -381,7 +380,7 @@ static bool att_strings_equal(const char* lhs, const char* rhs)
 	return strcmp(lhs, rhs) == 0;
 }
 
-void att_handle_string(int op, const char* assertion, const char* file, int line, bool fatal, const char* lhs_expr, const char* rhs_expr, const char* lhs, const char* rhs)
+void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
 {
 	bool eq = att_strings_equal(lhs, rhs);
 	bool passed = (op == ATT_COMP_EQ) ? eq : !eq;
@@ -401,7 +400,7 @@ void att_handle_string(int op, const char* assertion, const char* file, int line
 	}
 }
 
-void att_handle_memory(const char* assertion, const char* file, int line, bool fatal, const void* lhs, const void* rhs, size_t size, const char* lhs_expr, const char* rhs_expr)
+void att_handle_memory(const char *assertion, const char *file, int line, bool fatal, const void *lhs, const void *rhs, size_t size, const char *lhs_expr, const char *rhs_expr)
 {
 	bool passed = false;
 	size_t mismatch_index = SIZE_MAX;
@@ -415,8 +414,8 @@ void att_handle_memory(const char* assertion, const char* file, int line, bool f
 	} else {
 		passed = memcmp(lhs, rhs, size) == 0;
 		if (!passed) {
-			const unsigned char* lbytes = lhs;
-			const unsigned char* rbytes = rhs;
+			const unsigned char *lbytes = lhs;
+			const unsigned char *rbytes = rhs;
 			for (size_t i = 0; i < size; ++i) {
 				if (lbytes[i] != rbytes[i]) {
 					mismatch_index = i;
@@ -455,7 +454,7 @@ void att_handle_memory(const char* assertion, const char* file, int line, bool f
 	}
 }
 
-void att_handle_near(const char* assertion, const char* file, int line, bool fatal, double lhs, double rhs, double epsilon, const char* lhs_expr, const char* rhs_expr, const char* eps_expr)
+void att_handle_near(const char *assertion, const char *file, int line, bool fatal, double lhs, double rhs, double epsilon, const char *lhs_expr, const char *rhs_expr, const char *eps_expr)
 {
 	bool valid = !isnan(lhs) && !isnan(rhs) && !isnan(epsilon) && epsilon >= 0.0;
 	bool passed = false;
@@ -503,7 +502,7 @@ void att_handle_near(const char* assertion, const char* file, int line, bool fat
 	}
 }
 
-static const char* att_status_name(att_status status)
+static const char *att_status_name(att_status status)
 {
 	switch (status) {
 	case ATT_STATUS_OK:
@@ -517,8 +516,8 @@ static const char* att_status_name(att_status status)
 	}
 }
 
-bool att_handle_subtest_expect(const char* assertion, const char* file, int line, const char* name_expr,
-    const char* name_value, int min, int max, att_status status, const att_result* result)
+bool att_handle_subtest_expect(const char *assertion, const char *file, int line, const char *name_expr,
+	const char *name_value, int min, int max, att_status status, const att_result *result)
 {
 	int failures = result ? result->failed : 0;
 	int fatal_failures = result ? result->fatal_failures : 0;
@@ -541,14 +540,14 @@ bool att_handle_subtest_expect(const char* assertion, const char* file, int line
 	char expr_buf[160];
 	snprintf(expr_buf, sizeof(expr_buf), "failed=%d, fatal=%d, nonfatal=%d", failures, fatal_failures, nonfatal_failures);
 
-	const char* sub_name = name_value ? name_value : "(null)";
-	const char* name_desc = name_expr ? name_expr : "name";
+	const char *sub_name = name_value ? name_value : "(null)";
+	const char *name_desc = name_expr ? name_expr : "name";
 
 	att_report_failure(false, assertion, file, line, expected_buf, actual_buf, expr_buf, name_desc, sub_name);
 	return false;
 }
 
-static void att_prepare_subtest_result(const att_test_result* in, att_result* out, att_status status)
+static void att_prepare_subtest_result(const att_test_result *in, att_result *out, att_status status)
 {
 	if (!out) {
 		return;
@@ -564,37 +563,37 @@ static void att_prepare_subtest_result(const att_test_result* in, att_result* ou
 struct att_subtest_scope {
 	att_context_state saved;
 	att_test_case temp;
-	char* fullname;
+	char *fullname;
 	bool active;
 };
 
-static att_subtest_scope* att_subtest_scope_allocate(void)
+static att_subtest_scope *att_subtest_scope_allocate(void)
 {
-	att_subtest_scope* scope = malloc(sizeof(*scope));
+	att_subtest_scope *scope = malloc(sizeof(*scope));
 	if (scope) {
 		memset(scope, 0, sizeof(*scope));
 	}
 	return scope;
 }
 
-att_subtest_scope* att_subtest_scope_enter(const char* name)
+att_subtest_scope *att_subtest_scope_enter(const char *name)
 {
-	att_subtest_scope* scope = att_subtest_scope_allocate();
+	att_subtest_scope *scope = att_subtest_scope_allocate();
 	if (!scope) {
 		return NULL;
 	}
 
 	scope->saved = g_ctx;
 
-	const char* parent_suite = (g_ctx.active && g_ctx.test && g_ctx.test->suite) ? g_ctx.test->suite : "<subtest>";
-	const char* parent_name = (g_ctx.active && g_ctx.test && g_ctx.test->fullname) ? g_ctx.test->fullname : "(test)";
-	const char* sub_name = name ? name : "subtest";
+	const char *parent_suite = (g_ctx.active && g_ctx.test && g_ctx.test->suite) ? g_ctx.test->suite : "<subtest>";
+	const char *parent_name = (g_ctx.active && g_ctx.test && g_ctx.test->fullname) ? g_ctx.test->fullname : "(test)";
+	const char *sub_name = name ? name : "subtest";
 
 	size_t parent_len = strlen(parent_name);
 	size_t sub_len = strlen(sub_name);
 	size_t total_len = parent_len + 3 + sub_len;
 
-	char* full_name = malloc(total_len + 1);
+	char *full_name = malloc(total_len + 1);
 	if (full_name) {
 		snprintf(full_name, total_len + 1, "%s / %s", parent_name, sub_name);
 	}
@@ -613,7 +612,7 @@ att_subtest_scope* att_subtest_scope_enter(const char* name)
 	return scope;
 }
 
-int att_subtest_scope_protect(att_subtest_scope* scope)
+int att_subtest_scope_protect(att_subtest_scope *scope)
 {
 	if (!scope || !scope->active) {
 		return 1;
@@ -621,7 +620,7 @@ int att_subtest_scope_protect(att_subtest_scope* scope)
 	return att_context_protect();
 }
 
-static att_status att_subtest_scope_finalize(att_subtest_scope* scope, att_result* out)
+static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_result *out)
 {
 	if (!scope || !scope->active) {
 		if (out) {
@@ -649,7 +648,7 @@ static att_status att_subtest_scope_finalize(att_subtest_scope* scope, att_resul
 	return status;
 }
 
-att_status att_subtest_scope_leave(att_subtest_scope* scope, att_result* out)
+att_status att_subtest_scope_leave(att_subtest_scope *scope, att_result *out)
 {
 	att_status status = ATT_STATUS_ABORTED;
 	if (scope) {
@@ -667,7 +666,7 @@ att_status att_subtest_scope_leave(att_subtest_scope* scope, att_result* out)
 	return status;
 }
 
-att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_result* out)
+att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att_result *out)
 {
 	if (!fn) {
 		if (out) {
@@ -677,14 +676,14 @@ att_status att_run_subtest(const char* name, void (*fn)(void*), void* user, att_
 		return ATT_STATUS_FAIL;
 	}
 
-	att_subtest_scope* scope = att_subtest_scope_enter(name);
+	att_subtest_scope *scope = att_subtest_scope_enter(name);
 	if (att_subtest_scope_protect(scope) == 0) {
 		fn(user);
 	}
 	return att_subtest_scope_leave(scope, out);
 }
 
-void att_replay_captured(const att_captured* captured)
+void att_replay_captured(const att_captured *captured)
 {
 	if (!captured || !captured->data || captured->size == 0) {
 		return;

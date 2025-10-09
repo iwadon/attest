@@ -6,13 +6,13 @@
 #include "attest/attest.h"
 #include "internal/attest_internal.h"
 
-static char* att_strdup(const char* source)
+static char *att_strdup(const char *source)
 {
 	if (!source) {
 		return NULL;
 	}
 	size_t len = strlen(source);
-	char* copy = malloc(len + 1);
+	char *copy = malloc(len + 1);
 	if (!copy) {
 		return NULL;
 	}
@@ -20,9 +20,9 @@ static char* att_strdup(const char* source)
 	return copy;
 }
 
-static char* att_strndup(const char* source, size_t length)
+static char *att_strndup(const char *source, size_t length)
 {
-	char* copy = malloc(length + 1);
+	char *copy = malloc(length + 1);
 	if (!copy) {
 		return NULL;
 	}
@@ -33,11 +33,11 @@ static char* att_strndup(const char* source, size_t length)
 	return copy;
 }
 
-static char* att_format_unknown_option(const char* option)
+static char *att_format_unknown_option(const char *option)
 {
 	static const char prefix[] = "error: unknown option '";
 	size_t opt_len = strlen(option);
-	char* buffer = malloc(sizeof(prefix) - 1 + opt_len + 2);
+	char *buffer = malloc(sizeof(prefix) - 1 + opt_len + 2);
 	if (!buffer) {
 		return NULL;
 	}
@@ -48,7 +48,7 @@ static char* att_format_unknown_option(const char* option)
 	return buffer;
 }
 
-static char* att_normalize_pattern(const char* pattern)
+static char *att_normalize_pattern(const char *pattern)
 {
 	if (!pattern || !*pattern) {
 		return att_strdup("*");
@@ -56,7 +56,7 @@ static char* att_normalize_pattern(const char* pattern)
 
 	if (pattern[0] == '.') {
 		size_t len = strlen(pattern);
-		char* normalized = malloc(len + 2);
+		char *normalized = malloc(len + 2);
 		if (!normalized) {
 			return NULL;
 		}
@@ -67,7 +67,7 @@ static char* att_normalize_pattern(const char* pattern)
 
 	if (strchr(pattern, '.') == NULL) {
 		size_t len = strlen(pattern);
-		char* normalized = malloc(len + 3);
+		char *normalized = malloc(len + 3);
 		if (!normalized) {
 			return NULL;
 		}
@@ -81,13 +81,13 @@ static char* att_normalize_pattern(const char* pattern)
 	return att_strdup(pattern);
 }
 
-static int att_parse_filter_patterns(const char* raw, att_cli_options* opts, char** err_msg)
+static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, char **err_msg)
 {
 	if (!raw) {
 		return 0;
 	}
 
-	char* raw_copy = att_strdup(raw);
+	char *raw_copy = att_strdup(raw);
 	if (!raw_copy) {
 		if (err_msg) {
 			*err_msg = att_strdup("error: allocation failure");
@@ -96,13 +96,13 @@ static int att_parse_filter_patterns(const char* raw, att_cli_options* opts, cha
 	}
 
 	size_t segments = 1;
-	for (const char* it = raw; *it; ++it) {
+	for (const char *it = raw; *it; ++it) {
 		if (*it == ';') {
 			++segments;
 		}
 	}
 
-	char** filters = calloc(segments, sizeof(char*));
+	char **filters = calloc(segments, sizeof(char *));
 	if (!filters) {
 		free(raw_copy);
 		if (err_msg) {
@@ -112,18 +112,18 @@ static int att_parse_filter_patterns(const char* raw, att_cli_options* opts, cha
 	}
 
 	size_t index = 0;
-	const char* head = raw;
+	const char *head = raw;
 	while (true) {
-		const char* delim = strchr(head, ';');
+		const char *delim = strchr(head, ';');
 		size_t length = delim ? (size_t)(delim - head) : strlen(head);
-		char* slice = att_strndup(head, length);
+		char *slice = att_strndup(head, length);
 		if (!slice) {
 			if (err_msg) {
 				*err_msg = att_strdup("error: allocation failure");
 			}
 			goto fail;
 		}
-		char* normalized = att_normalize_pattern(slice);
+		char *normalized = att_normalize_pattern(slice);
 		free(slice);
 		if (!normalized) {
 			if (err_msg) {
@@ -152,7 +152,7 @@ fail:
 	return -1;
 }
 
-int att_cli_parse(int argc, char** argv, att_cli_options* out_opts, char** err_msg)
+int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_msg)
 {
 	if (!out_opts) {
 		if (err_msg) {
@@ -168,9 +168,9 @@ int att_cli_parse(int argc, char** argv, att_cli_options* out_opts, char** err_m
 	out_opts->filter_count = 0;
 
 	for (int i = 1; i < argc; ++i) {
-		const char* arg = argv[i];
+		const char *arg = argv[i];
 		if (strncmp(arg, "--filter=", 9) == 0) {
-			const char* value = arg + 9;
+			const char *value = arg + 9;
 			if (att_parse_filter_patterns(value, out_opts, err_msg) != 0) {
 				return 1;
 			}
@@ -199,7 +199,7 @@ int att_cli_parse(int argc, char** argv, att_cli_options* out_opts, char** err_m
 	return 0;
 }
 
-static bool att_match_simple(const char* pattern, const char* text)
+static bool att_match_simple(const char *pattern, const char *text)
 {
 	if (*pattern == '\0') {
 		return *text == '\0';
@@ -212,7 +212,7 @@ static bool att_match_simple(const char* pattern, const char* text)
 		if (*pattern == '\0') {
 			return true;
 		}
-		const char* t = text;
+		const char *t = text;
 		while (*t) {
 			if (att_match_simple(pattern, t)) {
 				return true;
@@ -232,7 +232,7 @@ static bool att_match_simple(const char* pattern, const char* text)
 	return att_match_simple(pattern + 1, text + 1);
 }
 
-bool att_filter_match(const att_test_case* test, const att_cli_options* opts)
+bool att_filter_match(const att_test_case *test, const att_cli_options *opts)
 {
 	if (!test || !opts) {
 		return false;
@@ -248,13 +248,13 @@ bool att_filter_match(const att_test_case* test, const att_cli_options* opts)
 	return false;
 }
 
-void att_print_list(const att_registry* registry, const att_cli_options* opts)
+void att_print_list(const att_registry *registry, const att_cli_options *opts)
 {
 	if (!registry) {
 		return;
 	}
 	for (size_t i = 0; i < registry->count; ++i) {
-		const att_test_case* test = &registry->tests[i];
+		const att_test_case *test = &registry->tests[i];
 		if (opts && !att_filter_match(test, opts)) {
 			continue;
 		}
@@ -262,7 +262,7 @@ void att_print_list(const att_registry* registry, const att_cli_options* opts)
 	}
 }
 
-void att_cli_dispose(att_cli_options* opts)
+void att_cli_dispose(att_cli_options *opts)
 {
 	if (!opts) {
 		return;
@@ -274,7 +274,7 @@ void att_cli_dispose(att_cli_options* opts)
 		free(opts->filters);
 	}
 	if (opts->filter_raw) {
-		free((void*)opts->filter_raw);
+		free((void *)opts->filter_raw);
 	}
 	opts->filters = NULL;
 	opts->filter_count = 0;

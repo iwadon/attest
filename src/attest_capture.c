@@ -21,8 +21,8 @@
 
 typedef struct att_capture_state {
 	int original_fd;
-	FILE* temp;
-	char* buffer;
+	FILE *temp;
+	char *buffer;
 	size_t size;
 	int active;
 } att_capture_state;
@@ -43,7 +43,7 @@ int att_capture_begin(void)
 
 	fflush(stderr);
 
-	FILE* temp = tmpfile();
+	FILE *temp = tmpfile();
 	if (!temp) {
 		return -1;
 	}
@@ -68,7 +68,7 @@ int att_capture_begin(void)
 	return 0;
 }
 
-int att_capture_end(att_captured* out)
+int att_capture_end(att_captured *out)
 {
 	if (!g_capture.active || !g_capture.temp) {
 		if (out) {
@@ -119,7 +119,7 @@ int att_capture_end(att_captured* out)
 	}
 
 	size_t size = (size_t)end_pos;
-	char* buffer = malloc(size + 1);
+	char *buffer = malloc(size + 1);
 	if (!buffer) {
 		fclose(g_capture.temp);
 		g_capture.temp = NULL;
