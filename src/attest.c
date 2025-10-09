@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,21 +159,34 @@ int attest_main(int argc, char** argv)
 	att_cli_options opts;
 	char* cli_error = NULL;
 	int cli_rc = att_cli_parse(argc, argv, &opts, &cli_error);
+	int exit_code = 0;
+	bool registry_locked = false;
 	if (cli_rc != 0) {
 		if (cli_error) {
 			fprintf(stderr, "%s\n", cli_error);
 			free(cli_error);
 		}
-		return 2;
+		exit_code = 2;
+		goto cleanup;
 	}
+
+	att_registry_finalize();
+	registry_locked = true;
 
 	if (opts.list_only) {
 		att_print_list(registry, &opts);
-		return 0;
+		exit_code = 0;
+		goto cleanup;
 	}
 
 	att_summary summary;
-	int rc = att_run_tests(registry, &opts, &summary);
+	exit_code = att_run_tests(registry, &opts, &summary);
 	att_report_summary(&summary, opts.color_enabled);
-	return rc;
+
+cleanup:
+	if (registry_locked) {
+		registry->frozen = false;
+	}
+	att_cli_dispose(&opts);
+	return exit_code;
 }

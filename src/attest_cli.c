@@ -261,3 +261,24 @@ void att_print_list(const att_registry* registry, const att_cli_options* opts)
 		printf("%s\n", test->fullname);
 	}
 }
+
+void att_cli_dispose(att_cli_options* opts)
+{
+	if (!opts) {
+		return;
+	}
+	if (opts->filters) {
+		for (size_t i = 0; i < opts->filter_count; ++i) {
+			free(opts->filters[i]);
+		}
+		free(opts->filters);
+	}
+	if (opts->filter_raw) {
+		free((void*)opts->filter_raw);
+	}
+	opts->filters = NULL;
+	opts->filter_count = 0;
+	opts->filter_raw = NULL;
+	opts->list_only = false;
+	opts->color_enabled = true;
+}

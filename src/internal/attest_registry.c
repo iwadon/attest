@@ -9,6 +9,14 @@
 
 static att_registry g_registry;
 
+static void att_registry_clear_error(att_registry* registry)
+{
+	if (registry && registry->last_error) {
+		free((void*)registry->last_error);
+		registry->last_error = NULL;
+	}
+}
+
 att_registry* att_registry_get(void)
 {
 	return &g_registry;
@@ -17,6 +25,28 @@ att_registry* att_registry_get(void)
 const char* att_registry_error(void)
 {
 	return g_registry.last_error;
+}
+
+static void att_registry_cleanup_entries(att_registry* registry)
+{
+	if (!registry || !registry->tests) {
+		return;
+	}
+	for (size_t i = 0; i < registry->count; ++i) {
+		const att_test_case* test = &registry->tests[i];
+		free((void*)test->fullname);
+	}
+	free(registry->tests);
+	registry->tests = NULL;
+	registry->count = 0;
+	registry->capacity = 0;
+}
+
+static void att_registry_atexit(void)
+{
+	att_registry_cleanup_entries(&g_registry);
+	att_registry_clear_error(&g_registry);
+	g_registry.frozen = false;
 }
 
 static int att_registry_grow(att_registry* registry)
@@ -55,7 +85,7 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 	for (size_t i = 0; i < registry->count; ++i) {
 		const att_test_case* existing = &registry->tests[i];
 		if (strcmp(existing->suite, suite) == 0 && strcmp(existing->name, name) == 0) {
-			free((void*)registry->last_error);
+			att_registry_clear_error(registry);
 			size_t msg_len = fullname_len + sizeof("error: duplicate test name ''");
 			char* msg = malloc(msg_len);
 			if (msg) {
@@ -98,6 +128,12 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 	slot->line = line;
 	slot->fn = fn;
 
+	if (!registry->cleanup_registered) {
+		if (atexit(att_registry_atexit) == 0) {
+			registry->cleanup_registered = true;
+		}
+	}
+
 	if (error) {
 		*error = NULL;
 	}
@@ -124,4 +160,12 @@ void att_register_manual(const att_register_fn* fns, size_t count)
 			fns[i]();
 		}
 	}
+}
+
+void att_registry_cleanup(void)
+{
+	att_registry_cleanup_entries(&g_registry);
+	att_registry_clear_error(&g_registry);
+	g_registry.cleanup_registered = false;
+	g_registry.frozen = false;
 }

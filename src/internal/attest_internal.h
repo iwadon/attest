@@ -21,6 +21,7 @@ typedef struct att_registry {
 	size_t capacity;
 	bool frozen;
 	const char* last_error;
+	bool cleanup_registered;
 } att_registry;
 
 typedef struct att_cli_options {
@@ -47,9 +48,11 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 const char* att_registry_error(void);
 
 int att_cli_parse(int argc, char** argv, att_cli_options* out_opts, char** err_msg);
+void att_cli_dispose(att_cli_options* opts);
 bool att_filter_match(const att_test_case* test, const att_cli_options* opts);
 void att_print_list(const att_registry* registry, const att_cli_options* opts);
 int att_run_tests(const att_registry* registry, const att_cli_options* opts, att_summary* summary);
 void att_report_summary(const att_summary* summary, bool color_enabled);
+void att_registry_cleanup(void);
 
 #endif /* ATTEST_INTERNAL_H */
