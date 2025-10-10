@@ -63,6 +63,15 @@ TEST_F(MathFx, AddsCorrectly) {
              actual   1
 ```
 
+セットアップ失敗時の出力例（プレーンフォーマット）：
+```
+[ RUN      ] Suite.NeedsDatabase
+[  FAILED  ] Suite.NeedsDatabase (setup)
+  (setup) ASSERT_TRUE(db_connected)
+          expected true
+          actual   false
+```
+
 ---
 
 ## 3. スキップと条件実行
