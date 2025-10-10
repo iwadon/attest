@@ -137,6 +137,7 @@ TEST_F(MathFx, AddsCorrectly) {
 	  reason: timeout after 500 ms
 	```
 - サマリでは失敗として集計し、追加で `timeouts` 指標を保持する。
+- プレーンフォーマットでは最終サマリ行の直後に `[----------] timeouts: <count>` を出力する。
 - POSIX 環境：`timerfd` または `pthread` タイマーで中断を実装。Windows は `WaitForSingleObject` 等で模倣。
 
 ### 5.3 シグナル/例外連携
