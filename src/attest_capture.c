@@ -29,7 +29,14 @@ typedef struct att_capture_state {
 	int active;
 } att_capture_state;
 
-static att_capture_state g_capture;
+static att_capture_state g_capture = { .original_fd = -1 };
+
+static void att_capture_state_reset(void)
+{
+	g_capture.active = 0;
+	g_capture.temp = NULL;
+	g_capture.original_fd = -1;
+}
 
 int att_capture_begin(void)
 {
@@ -55,6 +62,7 @@ int att_capture_begin(void)
 	if (ATT_DUP2(temp_fd, stderr_fd) < 0) {
 		ATT_CLOSE(saved_fd);
 		fclose(temp);
+		att_capture_state_reset();
 		return -1;
 	}
 
@@ -71,6 +79,7 @@ int att_capture_end(att_captured *out)
 			out->data = NULL;
 			out->size = 0;
 		}
+		att_capture_state_reset();
 		return -1;
 	}
 
@@ -80,8 +89,7 @@ int att_capture_end(att_captured *out)
 	if (ATT_DUP2(g_capture.original_fd, stderr_fd) < 0) {
 		ATT_CLOSE(g_capture.original_fd);
 		fclose(g_capture.temp);
-		g_capture.temp = NULL;
-		g_capture.active = 0;
+		att_capture_state_reset();
 		if (out) {
 			out->data = NULL;
 			out->size = 0;
@@ -94,8 +102,7 @@ int att_capture_end(att_captured *out)
 	long end_pos = ftell(g_capture.temp);
 	if (end_pos < 0) {
 		fclose(g_capture.temp);
-		g_capture.temp = NULL;
-		g_capture.active = 0;
+		att_capture_state_reset();
 		if (out) {
 			out->data = NULL;
 			out->size = 0;
@@ -105,8 +112,7 @@ int att_capture_end(att_captured *out)
 
 	if (fseek(g_capture.temp, 0L, SEEK_SET) != 0) {
 		fclose(g_capture.temp);
-		g_capture.temp = NULL;
-		g_capture.active = 0;
+		att_capture_state_reset();
 		if (out) {
 			out->data = NULL;
 			out->size = 0;
@@ -118,8 +124,7 @@ int att_capture_end(att_captured *out)
 	char *buffer = malloc(size + 1);
 	if (!buffer) {
 		fclose(g_capture.temp);
-		g_capture.temp = NULL;
-		g_capture.active = 0;
+		att_capture_state_reset();
 		if (out) {
 			out->data = NULL;
 			out->size = 0;
@@ -131,8 +136,7 @@ int att_capture_end(att_captured *out)
 	buffer[read] = '\0';
 
 	fclose(g_capture.temp);
-	g_capture.temp = NULL;
-	g_capture.active = 0;
+	att_capture_state_reset();
 
 	if (out) {
 		out->data = buffer;

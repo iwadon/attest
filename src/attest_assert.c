@@ -17,37 +17,39 @@ typedef struct att_context_state {
 	bool color_enabled;
 	jmp_buf abort_env;
 	att_test_result result;
+	struct att_context_state *previous;
 } att_context_state;
 
-static att_context_state g_ctx;
+static att_context_state g_ctx_root;
+static att_context_state *g_ctx = &g_ctx_root;
 
 void att_context_begin(const att_test_case *test, bool color_enabled)
 {
-	memset(&g_ctx, 0, sizeof(g_ctx));
-	g_ctx.test = test;
-	g_ctx.color_enabled = color_enabled;
-	g_ctx.active = true;
+	memset(g_ctx, 0, sizeof(*g_ctx));
+	g_ctx->test = test;
+	g_ctx->color_enabled = color_enabled;
+	g_ctx->active = true;
 }
 
 int att_context_protect(void)
 {
-	return setjmp(g_ctx.abort_env);
+	return setjmp(g_ctx->abort_env);
 }
 
 void att_context_end(att_test_result *out_result)
 {
 	if (out_result) {
-		*out_result = g_ctx.result;
+		*out_result = g_ctx->result;
 	}
-	g_ctx.active = false;
+	g_ctx->active = false;
 }
 
 void att_context_record_assert(bool fatal, bool passed)
 {
-	if (!g_ctx.active) {
+	if (!g_ctx->active) {
 		return;
 	}
-	++g_ctx.result.assertions_total;
+	++g_ctx->result.assertions_total;
 	if (!passed) {
 		att_context_register_failure(fatal);
 	}
@@ -55,33 +57,33 @@ void att_context_record_assert(bool fatal, bool passed)
 
 void att_context_register_failure(bool fatal)
 {
-	if (!g_ctx.active) {
+	if (!g_ctx->active) {
 		return;
 	}
 	if (fatal) {
-		++g_ctx.result.fail_fatal;
+		++g_ctx->result.fail_fatal;
 	} else {
-		++g_ctx.result.fail_nonfatal;
+		++g_ctx->result.fail_nonfatal;
 	}
 }
 
 void att_context_abort(void)
 {
-	if (!g_ctx.active) {
+	if (!g_ctx->active) {
 		return;
 	}
-	g_ctx.result.aborted = true;
-	longjmp(g_ctx.abort_env, 1);
+	g_ctx->result.aborted = true;
+	longjmp(g_ctx->abort_env, 1);
 }
 
 bool att_context_color_enabled(void)
 {
-	return g_ctx.color_enabled;
+	return g_ctx->color_enabled;
 }
 
 const att_test_case *att_context_current_test(void)
 {
-	return g_ctx.test;
+	return g_ctx->test;
 }
 
 static const char *att_color_fail(void)
@@ -561,7 +563,8 @@ static void att_prepare_subtest_result(const att_test_result *in, att_result *ou
 }
 
 struct att_subtest_scope {
-	att_context_state saved;
+	att_context_state state;
+	att_context_state *previous;
 	att_test_case temp;
 	char *fullname;
 	bool active;
@@ -583,10 +586,11 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 		return NULL;
 	}
 
-	scope->saved = g_ctx;
+	att_context_state *parent = g_ctx;
+	scope->previous = parent;
 
-	const char *parent_suite = (g_ctx.active && g_ctx.test && g_ctx.test->suite) ? g_ctx.test->suite : "<subtest>";
-	const char *parent_name = (g_ctx.active && g_ctx.test && g_ctx.test->fullname) ? g_ctx.test->fullname : "(test)";
+	const char *parent_suite = (parent && parent->active && parent->test && parent->test->suite) ? parent->test->suite : "<subtest>";
+	const char *parent_name = (parent && parent->active && parent->test && parent->test->fullname) ? parent->test->fullname : "(test)";
 	const char *sub_name = name ? name : "subtest";
 
 	size_t parent_len = strlen(parent_name);
@@ -602,12 +606,14 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 	scope->temp.suite = parent_suite;
 	scope->temp.name = sub_name;
 	scope->temp.fullname = full_name ? full_name : sub_name;
-	scope->temp.file = (g_ctx.active && g_ctx.test && g_ctx.test->file) ? g_ctx.test->file : "";
-	scope->temp.line = (g_ctx.active && g_ctx.test) ? g_ctx.test->line : 0;
+	scope->temp.file = (parent && parent->active && parent->test && parent->test->file) ? parent->test->file : "";
+	scope->temp.line = (parent && parent->active && parent->test) ? parent->test->line : 0;
 	scope->temp.fn = NULL;
 
 	bool color = att_context_color_enabled();
+	g_ctx = &scope->state;
 	att_context_begin(&scope->temp, color);
+	g_ctx->previous = scope->previous;
 	scope->active = true;
 	return scope;
 }
@@ -622,11 +628,13 @@ int att_subtest_scope_protect(att_subtest_scope *scope)
 
 static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_result *out)
 {
+	att_context_state *parent = scope ? scope->previous : g_ctx;
 	if (!scope || !scope->active) {
 		if (out) {
 			memset(out, 0, sizeof(*out));
 			out->status = ATT_STATUS_ABORTED;
 		}
+		g_ctx = parent;
 		return ATT_STATUS_ABORTED;
 	}
 
@@ -644,7 +652,7 @@ static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_resul
 
 	att_prepare_subtest_result(&sub_result, out, status);
 	scope->active = false;
-	g_ctx = scope->saved;
+	g_ctx = parent;
 	return status;
 }
 

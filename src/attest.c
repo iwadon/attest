@@ -30,7 +30,6 @@ static int att_collect_suites(const att_registry *registry, const att_cli_option
 
 	for (size_t i = 0; i < registry->count; ++i) {
 		const att_test_case *test = &registry->tests[i];
-		fprintf(stderr, "DEBUG: filter_count=%zu filters_ptr=%p\n", opts->filter_count, (void *)opts->filters);
 		if (!att_filter_match(test, opts)) {
 			continue;
 		}
@@ -101,25 +100,17 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 		if (!att_filter_match(test, opts)) {
 			continue;
 		}
-		fprintf(stderr, "DEBUG: test[%zu] fullname_ptr=%p fn=%p\n", i, (void *)test->fullname, (void *)test->fn);
 		if (!test->fn) {
 			fprintf(stderr, "error: test '%s' has null function pointer\n", test->fullname);
 			continue;
 		}
 		att_context_begin(test, opts->color_enabled);
-		fprintf(stderr, "DEBUG: after context_begin\n");
 		int protect_rc = att_context_protect();
-		fprintf(stderr, "DEBUG: protect_rc=%d\n", protect_rc);
 		if (protect_rc == 0) {
-			fprintf(stderr, "DEBUG: invoking test body\n");
 			test->fn();
 		}
-		fprintf(stderr, "DEBUG: before context_end\n");
 		att_test_result result;
 		att_context_end(&result);
-		fprintf(stderr, "DEBUG: after context_end\n");
-		fprintf(stderr, "DEBUG: result fail_fatal=%d nonfatal=%d aborted=%d\n",
-			result.fail_fatal, result.fail_nonfatal, result.aborted);
 		++summary->tests_run;
 		summary->assertions_total += result.assertions_total;
 		int test_failures = result.fail_fatal + result.fail_nonfatal;
@@ -127,12 +118,9 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 		if (test_failures > 0 || result.aborted) {
 			++summary->tests_failed;
 		}
-		fprintf(stderr, "DEBUG: after summary update\n");
 	}
 
-	fprintf(stderr, "DEBUG: before free suites (suite_names=%p)\n", (void *)suite_names);
 	free(suite_names);
-	fprintf(stderr, "DEBUG: after free suites\n");
 
 	return summary->tests_failed > 0 ? 1 : 0;
 }
@@ -196,18 +184,14 @@ int attest_main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	fprintf(stderr, "DEBUG: running tests\n");
 	att_summary summary;
 	exit_code = att_run_tests(registry, &opts, &summary);
-	fprintf(stderr, "DEBUG: summarizing\n");
 	att_report_summary(&summary, opts.color_enabled);
 
 cleanup:
-	fprintf(stderr, "DEBUG: cleanup\n");
 	if (registry_locked) {
 		registry->frozen = false;
 	}
 	att_cli_dispose(&opts);
-	fprintf(stderr, "DEBUG: returning %d\n", exit_code);
 	return exit_code;
 }
