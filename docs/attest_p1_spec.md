@@ -54,6 +54,15 @@ TEST_F(MathFx, AddsCorrectly) {
 }
 ```
 
+ティアダウン失敗時の出力例（プレーンフォーマット）：
+```
+[ RUN      ] Suite.LeavesResource
+[  FAILED  ] Suite.LeavesResource (teardown)
+  (teardown) ASSERT_EQ(resource_refcount, 0)
+             expected 0
+             actual   1
+```
+
 ---
 
 ## 3. スキップと条件実行
