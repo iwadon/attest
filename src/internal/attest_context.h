@@ -43,5 +43,6 @@ void att_context_skip(const char* reason);
 void att_context_capture_failures(bool enabled);
 void att_context_timeout_start(int timeout_ms);
 void att_context_timeout_stop(void);
+att_output_format att_context_get_format(void);
 
 #endif /* ATTEST_CONTEXT_H */

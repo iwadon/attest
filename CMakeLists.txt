@@ -35,4 +35,6 @@ add_executable(attest_selftest
 
 target_link_libraries(attest_selftest PRIVATE attest)
 
+target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 add_test(NAME attest_selftest COMMAND attest_selftest)

@@ -171,6 +171,11 @@ att_context_phase att_context_phase_current(void)
 	return g_ctx->phase;
 }
 
+att_output_format att_context_get_format(void)
+{
+	return g_ctx->format;
+}
+
 void att_context_fixture_enter(const char *fixture_name, size_t fixture_size, void *instance, att_fixture_hook teardown)
 {
 	if (!g_ctx->active) {

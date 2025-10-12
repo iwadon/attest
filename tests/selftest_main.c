@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "attest/attest.h"
+#include "internal/attest_context.h"
 
 typedef struct {
 	int lhs;
@@ -192,6 +193,8 @@ TEST(Subtest, ExpectFailsMacroRegistersFailure)
 
 TEST(Output, EqualityFailureFormatting)
 {
+	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+
 	ASSERT_EQ(0, att_capture_begin());
 	att_result result;
 	att_status status = att_run_subtest("formatting", att_formatting_eq_failure, NULL, &result);
