@@ -18,6 +18,7 @@ typedef struct att_context_state {
 	const att_test_case *test;
 	bool active;
 	bool color_enabled;
+	att_output_format format;
 	sigjmp_buf abort_env;
 	att_test_result result;
 	struct att_context_state *previous;
@@ -55,11 +56,12 @@ static void att_timeout_signal_handler(int signo)
 	siglongjmp(g_ctx->abort_env, 1);
 }
 
-void att_context_begin(const att_test_case *test, bool color_enabled)
+void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format)
 {
 	memset(g_ctx, 0, sizeof(*g_ctx));
 	g_ctx->test = test;
 	g_ctx->color_enabled = color_enabled;
+	g_ctx->format = format;
 	g_ctx->active = true;
 	g_ctx->phase = ATT_CONTEXT_PHASE_TEST;
 }
@@ -80,8 +82,11 @@ void att_context_end(att_test_result *out_result)
 		const char *test_name = test ? test->fullname : "<unknown>";
 		const char *fail_color = att_color_fail();
 		const char *reset = att_color_reset();
-		fprintf(stderr, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
-		fprintf(stderr, "  reason: timeout after %d ms\n", g_ctx->timeout_ms);
+		bool suppress_default_output = (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT);
+		if (!suppress_default_output) {
+			fprintf(stderr, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
+			fprintf(stderr, "  reason: timeout after %d ms\n", g_ctx->timeout_ms);
+		}
 		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
 		att_context_failure_append_format("  reason: timeout after %d ms\n", g_ctx->timeout_ms);
 		g_ctx->timeout_triggered = false;
@@ -253,8 +258,11 @@ void att_context_skip(const char *reason)
 	const att_test_case *test = att_context_current_test();
 	const char *test_name = test ? test->fullname : "<unknown>";
 
-	printf("[  SKIPPED ] %s\n", test_name);
-	printf("  reason: %s\n", reason ? reason : "(none)");
+	bool suppress_default_output = (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT);
+	if (!suppress_default_output) {
+		printf("[  SKIPPED ] %s\n", test_name);
+		printf("  reason: %s\n", reason ? reason : "(none)");
+	}
 
 	att_context_fixture_on_abort();
 	siglongjmp(g_ctx->abort_env, 1);
@@ -489,26 +497,32 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 	const char *phase = att_phase_tag(att_context_phase_current());
 	FILE *out = stderr;
 
-	fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
-	if (phase) {
-		fprintf(out, " (%s)", phase);
+	bool suppress_default_output = (g_ctx && g_ctx->active && (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT));
+
+	if (!suppress_default_output) {
+		fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
+		if (phase) {
+			fprintf(out, " (%s)", phase);
+		}
+		fprintf(out, "\n");
 	}
-	fprintf(out, "\n");
 	if (phase) {
 		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", test_name, phase);
 	} else {
 		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
 	}
-	fprintf(out, "%s  ", file_color);
-	if (phase) {
-		fprintf(out, "(%s) ", phase);
+	if (!suppress_default_output) {
+		fprintf(out, "%s  ", file_color);
+		if (phase) {
+			fprintf(out, "(%s) ", phase);
+		}
+		fprintf(out, "%s:%d: %s failed%s%s\n",
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".",
+			reset);
 	}
-	fprintf(out, "%s:%d: %s failed%s%s\n",
-		file,
-		line,
-		assertion,
-		fatal ? " (fatal)." : ".",
-		reset);
 	if (phase) {
 		att_context_failure_append_format("  (%s) %s:%d: %s failed%s\n",
 			phase,
@@ -523,15 +537,23 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 			assertion,
 			fatal ? " (fatal)." : ".");
 	}
-	fprintf(out, "    expected: %s\n", expected);
+	if (!suppress_default_output) {
+		fprintf(out, "    expected: %s\n", expected);
+	}
 	att_context_failure_append_format("    expected: %s\n", expected);
-	fprintf(out, "      actual: %s\n", actual);
+	if (!suppress_default_output) {
+		fprintf(out, "      actual: %s\n", actual);
+	}
 	att_context_failure_append_format("      actual: %s\n", actual);
 	if (extra_label && extra_value) {
-		fprintf(out, "    %s: %s\n", extra_label, extra_value);
+		if (!suppress_default_output) {
+			fprintf(out, "    %s: %s\n", extra_label, extra_value);
+		}
 		att_context_failure_append_format("    %s: %s\n", extra_label, extra_value);
 	}
-	fprintf(out, "    expr: %s\n", expr_detail);
+	if (!suppress_default_output) {
+		fprintf(out, "    expr: %s\n", expr_detail);
+	}
 	att_context_failure_append_format("    expr: %s\n", expr_detail);
 }
 
@@ -952,8 +974,9 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 	scope->temp.fn = NULL;
 
 	bool color = att_context_color_enabled();
+	att_output_format format = (scope->previous && scope->previous->active) ? scope->previous->format : ATT_OUTPUT_DEFAULT;
 	g_ctx = &scope->state;
-	att_context_begin(&scope->temp, color);
+	att_context_begin(&scope->temp, color, format);
 	g_ctx->previous = scope->previous;
 	scope->active = true;
 	return scope;

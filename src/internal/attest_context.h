@@ -25,7 +25,7 @@ typedef enum att_context_phase {
 	ATT_CONTEXT_PHASE_TEARDOWN
 } att_context_phase;
 
-void att_context_begin(const att_test_case* test, bool color_enabled);
+void att_context_begin(const att_test_case* test, bool color_enabled, att_output_format format);
 int att_context_protect(void);
 void att_context_end(att_test_result* out_result);
 void att_context_record_assert(bool fatal, bool passed);

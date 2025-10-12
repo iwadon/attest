@@ -234,7 +234,7 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 			fprintf(stderr, "error: test '%s' has null function pointer\n", test->fullname);
 			continue;
 		}
-		att_context_begin(test, opts->color_enabled);
+		att_context_begin(test, opts->color_enabled, opts->format);
 		att_context_capture_failures(junit_mode);
 		if (opts->timeout_ms > 0) {
 			att_context_timeout_start(opts->timeout_ms);
