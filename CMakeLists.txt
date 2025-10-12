@@ -10,6 +10,7 @@ add_library(attest STATIC
     src/attest_cli.c
     src/attest_assert.c
     src/attest_capture.c
+    src/attest_fixture.c
     src/internal/attest_registry.c
 )
 

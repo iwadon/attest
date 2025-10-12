@@ -4,6 +4,32 @@
 
 #include "attest/attest.h"
 
+typedef struct {
+	int lhs;
+	int rhs;
+} MathFx;
+
+static int g_mathfx_setup_calls;
+static int g_mathfx_teardown_calls;
+
+ATT_FIXTURE_SETUP(MathFx)
+{
+	g_mathfx_setup_calls += 1;
+	att_fixture->lhs = 40;
+	att_fixture->rhs = 2;
+}
+
+ATT_FIXTURE_TEARDOWN(MathFx)
+{
+	g_mathfx_teardown_calls += 1;
+}
+
+static void skip_subtest(void *user)
+{
+	(void)user;
+	ATT_SKIP("subtest skip");
+}
+
 static void att_subtest_nonfatal(void *user)
 {
 	(void)user;
@@ -80,6 +106,58 @@ TEST(Assert, Memory)
 TEST(Assert, Near)
 {
 	EXPECT_NEAR(3.14159, 3.1416, 0.0001);
+}
+
+TEST_F(MathFx, ProvidesFixturePointer)
+{
+	MathFx *fx = ATT_FIXTURE(MathFx);
+	ASSERT_EQ(fx->lhs + fx->rhs, 42);
+	EXPECT_EQ(att_fixture->lhs, 40);
+	EXPECT_EQ(att_fixture->rhs, 2);
+}
+
+TEST_F(MathFx, CountsSetupPerTest)
+{
+	MathFx *fx = ATT_FIXTURE(MathFx);
+	EXPECT_TRUE(g_mathfx_setup_calls >= 1);
+	EXPECT_EQ(fx->lhs, 40);
+	EXPECT_EQ(fx->rhs, 2);
+}
+
+TEST(Fixture, SetupTeardownCounters)
+{
+	EXPECT_EQ(g_mathfx_setup_calls, 2);
+	EXPECT_EQ(g_mathfx_teardown_calls, 2);
+}
+
+TEST(Skip, TopLevel)
+{
+	ATT_SKIP("top-level skip");
+}
+
+TEST(Skip, ConditionalNoSkip)
+{
+	ATT_SKIP_IF(0, "should not skip");
+	EXPECT_TRUE(1);
+}
+
+TEST(Skip, SubtestRecordsSkip)
+{
+	att_result result;
+	att_status status = att_run_subtest("skip", skip_subtest, NULL, &result);
+	ASSERT_EQ(ATT_STATUS_OK, status);
+	EXPECT_EQ(1, result.skipped);
+	EXPECT_EQ(0, result.failed);
+}
+
+TEST(Timeout, Trigger)
+{
+	const char *env = getenv("ATTEST_ENABLE_TIMEOUT_TEST");
+	if (!env) {
+		ATT_SKIP("timeout test disabled");
+	}
+	for (;;) {
+	}
 }
 
 TEST(Subtest, ReportsFailures)

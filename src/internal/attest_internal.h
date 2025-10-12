@@ -24,12 +24,21 @@ typedef struct att_registry {
 	bool cleanup_registered;
 } att_registry;
 
+typedef enum att_output_format {
+	ATT_OUTPUT_DEFAULT = 0,
+	ATT_OUTPUT_TAP,
+	ATT_OUTPUT_JUNIT
+} att_output_format;
+
 typedef struct att_cli_options {
 	bool list_only;
 	bool color_enabled;
 	const char* filter_raw;
 	char** filters;
 	size_t filter_count;
+	att_output_format format;
+	char* output_path;
+	int timeout_ms;
 } att_cli_options;
 
 typedef struct att_summary {
@@ -38,6 +47,8 @@ typedef struct att_summary {
 	int tests_selected;
 	int tests_run;
 	int tests_failed;
+	int tests_skipped;
+	int timeouts;
 	int assertions_total;
 	int failures_total;
 } att_summary;

@@ -27,6 +27,9 @@ typedef struct att_result {
 typedef void (*att_test_fn)(void);
 typedef void (*att_register_fn)(void);
 
+typedef void (*att_fixture_hook)(void *);
+typedef void (*att_fixture_body_fn)(void *);
+
 int attest_main(int argc, char **argv);
 
 att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att_result *out);
@@ -72,6 +75,10 @@ bool att_handle_subtest_expect(const char *assertion, const char *file, int line
 	const char *name_value, int min, int max, att_status status, const att_result *result);
 void att_replay_captured(const att_captured *captured);
 void att_register_manual(const att_register_fn *fns, size_t count);
+void att_fixture_register_setup(const char *fixture_name, size_t fixture_size, att_fixture_hook fn);
+void att_fixture_register_teardown(const char *fixture_name, size_t fixture_size, att_fixture_hook fn);
+void att_fixture_run(const char *fixture_name, size_t fixture_size, att_fixture_body_fn body_fn);
+void att_skip(const char *reason);
 
 #define ATT_GENERIC_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
 	_Generic((lhs_value),                                                                        \
@@ -246,6 +253,9 @@ void att_register_manual(const att_register_fn *fns, size_t count);
 
 #define ATT_TEST_FN_NAME(Suite, Name) ATT_CONCAT3(att_test_fn_, Suite, ATT_SUFFIX(Name))
 #define ATT_REGISTER_FN_NAME(Suite, Name) ATT_CONCAT3(att_register_, Suite, ATT_SUFFIX(Name))
+#define ATT_FIXTURE_BODY_FN_NAME(Fixture, Name) ATT_CONCAT3(att_fixture_body_, Fixture, ATT_SUFFIX(Name))
+#define ATT_FIXTURE_SETUP_FN(Fixture) ATT_CONCAT(Fixture, _SetUp)
+#define ATT_FIXTURE_TEARDOWN_FN(Fixture) ATT_CONCAT(Fixture, _TearDown)
 
 #define ATT_TEST_IMPL(suite, name, fn_symbol, reg_symbol)              \
 	static void fn_symbol(void);                                       \
@@ -260,6 +270,49 @@ void att_register_manual(const att_register_fn *fns, size_t count);
 
 #define ATT_TEST_REF(Suite, Name) ATT_REGISTER_FN_NAME(Suite, Name)
 
+#define ATT_FIXTURE_SETUP(Fixture)                                                                                         \
+	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture);                                                       \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_setup_autoreg_, Fixture))                                                            \
+	{                                                                                                                       \
+		att_fixture_register_setup(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_SETUP_FN(Fixture));            \
+	}                                                                                                                       \
+	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture)
+
+#define ATT_FIXTURE_TEARDOWN(Fixture)                                                                                      \
+	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture);                                                    \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_teardown_autoreg_, Fixture))                                                         \
+	{                                                                                                                       \
+		att_fixture_register_teardown(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_TEARDOWN_FN(Fixture));      \
+	}                                                                                                                       \
+	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture)
+
+#define ATT_FIXTURE(type) ((type *)att_fixture)
+
+#define ATT_TEST_F_IMPL(suite, name, fixture_type, fn_symbol, body_symbol, reg_symbol)                    \
+	static void body_symbol(fixture_type * att_fixture);                                                  \
+	static void fn_symbol(void);                                                                          \
+	ATT_AUTOREG(reg_symbol)                                                                               \
+	{                                                                                                     \
+		att_register_test(suite, name, fn_symbol, __FILE__, __LINE__);                                    \
+	}                                                                                                     \
+	static void fn_symbol(void)                                                                           \
+	{                                                                                                     \
+		att_fixture_run(suite, sizeof(fixture_type), (att_fixture_body_fn)body_symbol);                   \
+	}                                                                                                     \
+	static void body_symbol(fixture_type * att_fixture)
+
+#define ATT_SKIP(reason)          \
+	do {                          \
+		att_skip(reason);         \
+	} while (0)
+
+#define ATT_SKIP_IF(cond, reason) \
+	do {                          \
+		if (cond) {               \
+			ATT_SKIP(reason);     \
+		}                         \
+	} while (0)
+
 #define ATT_REGISTER_TESTS(...)                                                                     \
 	do {                                                                                            \
 		const att_register_fn att__manual_fns[] = { __VA_ARGS__ };                                  \
@@ -267,6 +320,9 @@ void att_register_manual(const att_register_fn *fns, size_t count);
 	} while (0)
 
 #define TEST(Suite, Name) ATT_TEST(Suite, Name)
+#define TEST_F(Fixture, Name)                                                                 \
+	ATT_TEST_F_IMPL(#Fixture, #Name, Fixture, ATT_TEST_FN_NAME(Fixture, Name),                \
+		ATT_FIXTURE_BODY_FN_NAME(Fixture, Name), ATT_REGISTER_FN_NAME(Fixture, Name))
 
 #ifdef __cplusplus
 }

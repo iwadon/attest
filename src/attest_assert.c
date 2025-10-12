@@ -1,11 +1,14 @@
 #include <inttypes.h>
 #include <math.h>
+#include <stdarg.h>
+#include <signal.h>
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "attest/attest.h"
 #include "internal/attest_context.h"
@@ -15,13 +18,42 @@ typedef struct att_context_state {
 	const att_test_case *test;
 	bool active;
 	bool color_enabled;
-	jmp_buf abort_env;
+	sigjmp_buf abort_env;
 	att_test_result result;
 	struct att_context_state *previous;
+	att_context_phase phase;
+	void *fixture_instance;
+	size_t fixture_size;
+	const char *fixture_name;
+	att_fixture_hook fixture_teardown;
+	bool fixture_active;
+	bool fixture_teardown_ran;
+	bool capture_failures;
+	char *failure_buffer;
+	size_t failure_size;
+	size_t failure_capacity;
+	bool timeout_triggered;
+	int timeout_ms;
 } att_context_state;
 
 static att_context_state g_ctx_root;
 static att_context_state *g_ctx = &g_ctx_root;
+
+static char *att_dup_string(const char *text);
+static const char *att_color_fail(void);
+static const char *att_color_reset(void);
+static bool att_context_failure_append_format(const char *fmt, ...);
+static bool g_timeout_handler_installed;
+
+static void att_timeout_signal_handler(int signo)
+{
+	(void)signo;
+	if (!g_ctx || !g_ctx->active) {
+		return;
+	}
+	g_ctx->timeout_triggered = true;
+	siglongjmp(g_ctx->abort_env, 1);
+}
 
 void att_context_begin(const att_test_case *test, bool color_enabled)
 {
@@ -29,19 +61,52 @@ void att_context_begin(const att_test_case *test, bool color_enabled)
 	g_ctx->test = test;
 	g_ctx->color_enabled = color_enabled;
 	g_ctx->active = true;
+	g_ctx->phase = ATT_CONTEXT_PHASE_TEST;
 }
 
 int att_context_protect(void)
 {
-	return setjmp(g_ctx->abort_env);
+	return sigsetjmp(g_ctx->abort_env, 1);
 }
 
 void att_context_end(att_test_result *out_result)
 {
+	if (g_ctx->timeout_triggered) {
+		g_ctx->result.timed_out = true;
+		g_ctx->result.timeout_ms = g_ctx->timeout_ms;
+		++g_ctx->result.fail_fatal;
+		g_ctx->result.aborted = true;
+		const att_test_case *test = att_context_current_test();
+		const char *test_name = test ? test->fullname : "<unknown>";
+		const char *fail_color = att_color_fail();
+		const char *reset = att_color_reset();
+		fprintf(stderr, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
+		fprintf(stderr, "  reason: timeout after %d ms\n", g_ctx->timeout_ms);
+		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
+		att_context_failure_append_format("  reason: timeout after %d ms\n", g_ctx->timeout_ms);
+		g_ctx->timeout_triggered = false;
+	}
+	att_context_fixture_cleanup();
 	if (out_result) {
 		*out_result = g_ctx->result;
+		g_ctx->result.skip_reason = NULL;
+		g_ctx->result.failure_log = NULL;
+		out_result->failure_log = g_ctx->failure_buffer;
+		g_ctx->failure_buffer = NULL;
+		g_ctx->failure_size = 0;
+		g_ctx->failure_capacity = 0;
+	} else if (g_ctx->result.skip_reason) {
+		free(g_ctx->result.skip_reason);
+		g_ctx->result.skip_reason = NULL;
+	}
+	if (!out_result && g_ctx->failure_buffer) {
+		free(g_ctx->failure_buffer);
+		g_ctx->failure_buffer = NULL;
+		g_ctx->failure_size = 0;
+		g_ctx->failure_capacity = 0;
 	}
 	g_ctx->active = false;
+	g_ctx->phase = ATT_CONTEXT_PHASE_NONE;
 }
 
 void att_context_record_assert(bool fatal, bool passed)
@@ -73,7 +138,9 @@ void att_context_abort(void)
 		return;
 	}
 	g_ctx->result.aborted = true;
-	longjmp(g_ctx->abort_env, 1);
+	att_context_fixture_on_abort();
+	att_context_timeout_stop();
+	siglongjmp(g_ctx->abort_env, 1);
 }
 
 bool att_context_color_enabled(void)
@@ -86,6 +153,174 @@ const att_test_case *att_context_current_test(void)
 	return g_ctx->test;
 }
 
+void att_context_phase_set(att_context_phase phase)
+{
+	if (!g_ctx->active) {
+		return;
+	}
+	g_ctx->phase = phase;
+}
+
+att_context_phase att_context_phase_current(void)
+{
+	return g_ctx->phase;
+}
+
+void att_context_fixture_enter(const char *fixture_name, size_t fixture_size, void *instance, att_fixture_hook teardown)
+{
+	if (!g_ctx->active) {
+		return;
+	}
+	g_ctx->fixture_name = fixture_name;
+	g_ctx->fixture_size = fixture_size;
+	g_ctx->fixture_instance = instance;
+	g_ctx->fixture_teardown = teardown;
+	g_ctx->fixture_active = true;
+	g_ctx->fixture_teardown_ran = false;
+	g_ctx->phase = ATT_CONTEXT_PHASE_SETUP;
+}
+
+void att_context_fixture_mark_teardown_started(void)
+{
+	if (!g_ctx->active) {
+		return;
+	}
+	g_ctx->fixture_teardown_ran = true;
+}
+
+void att_context_fixture_cleanup(void)
+{
+	if (!g_ctx->fixture_active) {
+		return;
+	}
+	if (g_ctx->fixture_teardown && !g_ctx->fixture_teardown_ran) {
+		g_ctx->fixture_teardown_ran = true;
+		g_ctx->phase = ATT_CONTEXT_PHASE_TEARDOWN;
+		g_ctx->fixture_teardown(g_ctx->fixture_instance);
+	}
+	void *instance = g_ctx->fixture_instance;
+	g_ctx->fixture_instance = NULL;
+	g_ctx->fixture_active = false;
+	g_ctx->fixture_name = NULL;
+	g_ctx->fixture_size = 0;
+	g_ctx->fixture_teardown = NULL;
+	g_ctx->fixture_teardown_ran = false;
+	free(instance);
+	g_ctx->phase = ATT_CONTEXT_PHASE_TEST;
+}
+
+void att_context_fixture_on_abort(void)
+{
+	if (!g_ctx->fixture_active) {
+		return;
+	}
+	if (g_ctx->fixture_teardown && !g_ctx->fixture_teardown_ran) {
+		void *instance = g_ctx->fixture_instance;
+		att_fixture_hook teardown = g_ctx->fixture_teardown;
+		g_ctx->fixture_teardown_ran = true;
+		g_ctx->phase = ATT_CONTEXT_PHASE_TEARDOWN;
+		teardown(instance);
+	}
+	void *instance = g_ctx->fixture_instance;
+	g_ctx->fixture_instance = NULL;
+	g_ctx->fixture_active = false;
+	g_ctx->fixture_name = NULL;
+	g_ctx->fixture_size = 0;
+	g_ctx->fixture_teardown = NULL;
+	g_ctx->fixture_teardown_ran = false;
+	free(instance);
+	g_ctx->phase = ATT_CONTEXT_PHASE_TEST;
+}
+
+void att_context_skip(const char *reason)
+{
+	if (!g_ctx->active) {
+		return;
+	}
+
+	if (g_ctx->result.skip_reason) {
+		free(g_ctx->result.skip_reason);
+		g_ctx->result.skip_reason = NULL;
+	}
+
+	if (reason) {
+		g_ctx->result.skip_reason = att_dup_string(reason);
+	}
+
+	g_ctx->result.skipped = true;
+	g_ctx->result.aborted = false;
+
+	const att_test_case *test = att_context_current_test();
+	const char *test_name = test ? test->fullname : "<unknown>";
+
+	printf("[  SKIPPED ] %s\n", test_name);
+	printf("  reason: %s\n", reason ? reason : "(none)");
+
+	att_context_fixture_on_abort();
+	siglongjmp(g_ctx->abort_env, 1);
+}
+
+void att_context_capture_failures(bool enabled)
+{
+	if (!g_ctx->active) {
+		return;
+	}
+	if (enabled) {
+		g_ctx->capture_failures = true;
+		g_ctx->failure_size = 0;
+		if (g_ctx->failure_buffer) {
+			g_ctx->failure_buffer[0] = '\0';
+		}
+		return;
+	}
+	if (g_ctx->failure_buffer) {
+		free(g_ctx->failure_buffer);
+		g_ctx->failure_buffer = NULL;
+	}
+	g_ctx->failure_size = 0;
+	g_ctx->failure_capacity = 0;
+	g_ctx->capture_failures = false;
+}
+
+static void att_timeout_install_handler(void)
+{
+	if (g_timeout_handler_installed) {
+		return;
+	}
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = att_timeout_signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	if (sigaction(SIGALRM, &sa, NULL) == 0) {
+		g_timeout_handler_installed = true;
+	}
+}
+
+void att_context_timeout_start(int timeout_ms)
+{
+	if (!g_ctx->active || timeout_ms <= 0) {
+		return;
+	}
+	att_timeout_install_handler();
+	g_ctx->timeout_triggered = false;
+	g_ctx->timeout_ms = timeout_ms;
+	struct itimerval timer;
+	memset(&timer, 0, sizeof(timer));
+	timer.it_value.tv_sec = timeout_ms / 1000;
+	timer.it_value.tv_usec = (timeout_ms % 1000) * 1000;
+	setitimer(ITIMER_REAL, &timer, NULL);
+}
+
+void att_context_timeout_stop(void)
+{
+	struct itimerval timer;
+	memset(&timer, 0, sizeof(timer));
+	setitimer(ITIMER_REAL, &timer, NULL);
+	if (g_ctx) {
+		g_ctx->timeout_ms = 0;
+	}
+}
 static const char *att_color_fail(void)
 {
 	return att_context_color_enabled() ? "\033[31m" : "";
@@ -169,6 +404,81 @@ static void att_build_expr(char *buffer, size_t size, const char *lhs_expr, cons
 	snprintf(buffer, size, "%s=%s, %s=%s", lhs_expr, lhs_value->text, rhs_expr, rhs_value->text);
 }
 
+static char *att_dup_string(const char *text)
+{
+	if (!text) {
+		return NULL;
+	}
+	size_t length = strlen(text);
+	char *copy = malloc(length + 1);
+	if (!copy) {
+		return NULL;
+	}
+	memcpy(copy, text, length + 1);
+	return copy;
+}
+
+static bool att_context_failure_append(const char *data, size_t length)
+{
+	if (!g_ctx->capture_failures || !data || length == 0) {
+		return true;
+	}
+	size_t required = g_ctx->failure_size + length + 1;
+	if (required > g_ctx->failure_capacity) {
+		size_t new_capacity = g_ctx->failure_capacity ? g_ctx->failure_capacity * 2 : 256;
+		while (new_capacity < required) {
+			new_capacity *= 2;
+		}
+		char *grown = realloc(g_ctx->failure_buffer, new_capacity);
+		if (!grown) {
+			return false;
+		}
+		g_ctx->failure_buffer = grown;
+		g_ctx->failure_capacity = new_capacity;
+	}
+	memcpy(g_ctx->failure_buffer + g_ctx->failure_size, data, length);
+	g_ctx->failure_size += length;
+	g_ctx->failure_buffer[g_ctx->failure_size] = '\0';
+	return true;
+}
+
+static bool att_context_failure_append_format(const char *fmt, ...)
+{
+	if (!g_ctx->capture_failures) {
+		return true;
+	}
+	va_list args;
+	va_start(args, fmt);
+	int needed = vsnprintf(NULL, 0, fmt, args);
+	va_end(args);
+	if (needed <= 0) {
+		return false;
+	}
+	size_t length = (size_t)needed;
+	char *buffer = malloc(length + 1);
+	if (!buffer) {
+		return false;
+	}
+	va_start(args, fmt);
+	vsnprintf(buffer, length + 1, fmt, args);
+	va_end(args);
+	bool ok = att_context_failure_append(buffer, length);
+	free(buffer);
+	return ok;
+}
+
+static const char *att_phase_tag(att_context_phase phase)
+{
+	switch (phase) {
+	case ATT_CONTEXT_PHASE_SETUP:
+		return "setup";
+	case ATT_CONTEXT_PHASE_TEARDOWN:
+		return "teardown";
+	default:
+		return NULL;
+	}
+}
+
 static void att_report_failure(bool fatal, const char *assertion, const char *file, int line, const char *expected, const char *actual, const char *expr_detail, const char *extra_label, const char *extra_value)
 {
 	const att_test_case *test = att_context_current_test();
@@ -176,22 +486,53 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 	const char *fail_color = att_color_fail();
 	const char *file_color = att_color_file();
 	const char *reset = att_color_reset();
+	const char *phase = att_phase_tag(att_context_phase_current());
 	FILE *out = stderr;
 
-	fprintf(out, "%s[  FAILED  ]%s %s\n", fail_color, reset, test_name);
-	fprintf(out, "%s  %s:%d: %s failed%s%s\n",
-		file_color,
+	fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
+	if (phase) {
+		fprintf(out, " (%s)", phase);
+	}
+	fprintf(out, "\n");
+	if (phase) {
+		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", test_name, phase);
+	} else {
+		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
+	}
+	fprintf(out, "%s  ", file_color);
+	if (phase) {
+		fprintf(out, "(%s) ", phase);
+	}
+	fprintf(out, "%s:%d: %s failed%s%s\n",
 		file,
 		line,
 		assertion,
 		fatal ? " (fatal)." : ".",
 		reset);
+	if (phase) {
+		att_context_failure_append_format("  (%s) %s:%d: %s failed%s\n",
+			phase,
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".");
+	} else {
+		att_context_failure_append_format("  %s:%d: %s failed%s\n",
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".");
+	}
 	fprintf(out, "    expected: %s\n", expected);
+	att_context_failure_append_format("    expected: %s\n", expected);
 	fprintf(out, "      actual: %s\n", actual);
+	att_context_failure_append_format("      actual: %s\n", actual);
 	if (extra_label && extra_value) {
 		fprintf(out, "    %s: %s\n", extra_label, extra_value);
+		att_context_failure_append_format("    %s: %s\n", extra_label, extra_value);
 	}
 	fprintf(out, "    expr: %s\n", expr_detail);
+	att_context_failure_append_format("    expr: %s\n", expr_detail);
 }
 
 static bool att_compare_values(int op, long long lhs, long long rhs)
@@ -558,7 +899,7 @@ static void att_prepare_subtest_result(const att_test_result *in, att_result *ou
 	out->failed = in ? (in->fail_fatal + in->fail_nonfatal) : 0;
 	out->fatal_failures = in ? in->fail_fatal : 0;
 	out->nonfatal_failures = in ? in->fail_nonfatal : 0;
-	out->skipped = 0;
+	out->skipped = (in && in->skipped) ? 1 : 0;
 	out->status = status;
 }
 
@@ -642,7 +983,9 @@ static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_resul
 	att_context_end(&sub_result);
 
 	att_status status;
-	if (sub_result.aborted) {
+	if (sub_result.skipped) {
+		status = ATT_STATUS_OK;
+	} else if (sub_result.aborted) {
 		status = ATT_STATUS_ABORTED;
 	} else if ((sub_result.fail_fatal + sub_result.fail_nonfatal) > 0) {
 		status = ATT_STATUS_FAIL;
@@ -651,6 +994,9 @@ static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_resul
 	}
 
 	att_prepare_subtest_result(&sub_result, out, status);
+	if (sub_result.skip_reason) {
+		free(sub_result.skip_reason);
+	}
 	scope->active = false;
 	g_ctx = parent;
 	return status;
@@ -689,6 +1035,11 @@ att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att
 		fn(user);
 	}
 	return att_subtest_scope_leave(scope, out);
+}
+
+void att_skip(const char *reason)
+{
+	att_context_skip(reason);
 }
 
 void att_replay_captured(const att_captured *captured)

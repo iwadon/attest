@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -170,6 +171,9 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 	out_opts->filter_raw = NULL;
 	out_opts->filters = NULL;
 	out_opts->filter_count = 0;
+	out_opts->format = ATT_OUTPUT_DEFAULT;
+	out_opts->output_path = NULL;
+	out_opts->timeout_ms = 0;
 
 	for (int i = 1; i < argc; ++i) {
 		const char *arg = argv[i];
@@ -188,8 +192,81 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 			out_opts->color_enabled = false;
 			continue;
 		}
+		if (strncmp(arg, "--format=", 9) == 0) {
+			const char *value = arg + 9;
+			if (strcmp(value, "default") == 0) {
+				out_opts->format = ATT_OUTPUT_DEFAULT;
+			} else if (strcmp(value, "tap") == 0) {
+				out_opts->format = ATT_OUTPUT_TAP;
+			} else if (strcmp(value, "junit") == 0) {
+				out_opts->format = ATT_OUTPUT_JUNIT;
+			} else {
+				if (err_msg) {
+					*err_msg = att_format_unknown_option(arg);
+					if (!*err_msg) {
+						*err_msg = att_strdup("error: allocation failure");
+					}
+				}
+				return 1;
+			}
+			continue;
+		}
+		if (strncmp(arg, "--output=", 9) == 0) {
+			const char *value = arg + 9;
+			char *copy = att_strdup(value);
+			if (!copy) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: allocation failure");
+				}
+				return -1;
+			}
+			if (out_opts->output_path) {
+				free(out_opts->output_path);
+			}
+			out_opts->output_path = copy;
+			continue;
+		}
+		if (strncmp(arg, "--timeout-ms=", 13) == 0) {
+			const char *value = arg + 13;
+			if (!*value) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: invalid timeout value");
+				}
+				return 1;
+			}
+			char *endptr = NULL;
+			long parsed = strtol(value, &endptr, 10);
+			if (!endptr || *endptr != '\0' || parsed < 0 || parsed > INT_MAX) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: invalid timeout value");
+				}
+				return 1;
+			}
+			out_opts->timeout_ms = (int)parsed;
+			continue;
+		}
 		if (err_msg) {
 			*err_msg = att_format_unknown_option(arg);
+			if (!*err_msg) {
+				*err_msg = att_strdup("error: allocation failure");
+			}
+		}
+		return 1;
+	}
+
+	if (out_opts->format == ATT_OUTPUT_JUNIT) {
+		if (!out_opts->output_path) {
+			out_opts->output_path = att_strdup("test_detail.xml");
+			if (!out_opts->output_path) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: allocation failure");
+				}
+				return -1;
+			}
+		}
+	} else if (out_opts->output_path) {
+		if (err_msg) {
+			*err_msg = att_strdup("error: --output requires --format=junit");
 			if (!*err_msg) {
 				*err_msg = att_strdup("error: allocation failure");
 			}
@@ -280,9 +357,15 @@ void att_cli_dispose(att_cli_options *opts)
 	if (opts->filter_raw) {
 		free((void *)opts->filter_raw);
 	}
+	if (opts->output_path) {
+		free(opts->output_path);
+	}
 	opts->filters = NULL;
 	opts->filter_count = 0;
 	opts->filter_raw = NULL;
 	opts->list_only = false;
 	opts->color_enabled = true;
+	opts->output_path = NULL;
+	opts->format = ATT_OUTPUT_DEFAULT;
+	opts->timeout_ms = 0;
 }
