@@ -389,6 +389,26 @@ static const char *att_color_reset(void)
 	return att_context_color_enabled() ? "\033[0m" : "";
 }
 
+static const char *att_color_bg_dark_red(void)
+{
+	return att_context_color_enabled() ? "\033[48;2;80;20;20m" : "";
+}
+
+static const char *att_color_bg_dark_green(void)
+{
+	return att_context_color_enabled() ? "\033[48;2;20;60;20m" : "";
+}
+
+static const char *att_color_bg_red(void)
+{
+	return att_context_color_enabled() ? "\033[48;2;120;30;30m" : "";
+}
+
+static const char *att_color_bg_green(void)
+{
+	return att_context_color_enabled() ? "\033[48;2;30;90;30m" : "";
+}
+
 typedef struct att_formatted {
 	char buffer[128];
 	const char *text;
@@ -797,6 +817,169 @@ static bool att_strings_equal(const char *lhs, const char *rhs)
 	return strcmp(lhs, rhs) == 0;
 }
 
+typedef struct att_string_lines {
+	char **lines;
+	size_t count;
+} att_string_lines;
+
+static att_string_lines att_split_lines(const char *str)
+{
+	att_string_lines result = { NULL, 0 };
+	if (!str) {
+		return result;
+	}
+
+	size_t capacity = 16;
+	result.lines = malloc(capacity * sizeof(char *));
+	if (!result.lines) {
+		return result;
+	}
+
+	const char *line_start = str;
+	const char *pos = str;
+
+	while (*pos) {
+		if (*pos == '\n') {
+			size_t len = pos - line_start;
+			char *line = malloc(len + 1);
+			if (line) {
+				memcpy(line, line_start, len);
+				line[len] = '\0';
+				if (result.count >= capacity) {
+					capacity *= 2;
+					char **grown = realloc(result.lines, capacity * sizeof(char *));
+					if (!grown) {
+						free(line);
+						break;
+					}
+					result.lines = grown;
+				}
+				result.lines[result.count++] = line;
+			}
+			line_start = pos + 1;
+		}
+		pos++;
+	}
+
+	if (line_start != pos) {
+		size_t len = pos - line_start;
+		char *line = malloc(len + 1);
+		if (line) {
+			memcpy(line, line_start, len);
+			line[len] = '\0';
+			if (result.count >= capacity) {
+				capacity *= 2;
+				char **grown = realloc(result.lines, capacity * sizeof(char *));
+				if (grown) {
+					result.lines = grown;
+					result.lines[result.count++] = line;
+				} else {
+					free(line);
+				}
+			} else {
+				result.lines[result.count++] = line;
+			}
+		}
+	}
+
+	return result;
+}
+
+static void att_free_lines(att_string_lines *lines)
+{
+	if (!lines || !lines->lines) {
+		return;
+	}
+	for (size_t i = 0; i < lines->count; i++) {
+		free(lines->lines[i]);
+	}
+	free(lines->lines);
+	lines->lines = NULL;
+	lines->count = 0;
+}
+
+static size_t att_find_first_diff(const char *lhs, const char *rhs)
+{
+	if (!lhs || !rhs) {
+		return 0;
+	}
+	size_t i = 0;
+	while (lhs[i] && rhs[i] && lhs[i] == rhs[i]) {
+		i++;
+	}
+	return i;
+}
+
+static void att_print_line_diff(FILE *out, size_t line_num, const char *expected, const char *actual)
+{
+	const char *bg_dark_red = att_color_bg_dark_red();
+	const char *bg_dark_green = att_color_bg_dark_green();
+	const char *bg_red = att_color_bg_red();
+	const char *bg_green = att_color_bg_green();
+	const char *reset = att_color_reset();
+	bool color = att_context_color_enabled();
+
+	if (expected && actual && strcmp(expected, actual) == 0) {
+		fprintf(out, "  %3zu  %s\n", line_num, expected);
+		return;
+	}
+
+	if (expected && actual) {
+		size_t diff_pos = att_find_first_diff(expected, actual);
+		size_t exp_len = strlen(expected);
+		size_t act_len = strlen(actual);
+
+		fprintf(out, "  %3zu -%s", line_num, color ? bg_dark_red : "");
+		for (size_t i = 0; i < exp_len; i++) {
+			if (color && i >= diff_pos && (i >= act_len || expected[i] != actual[i])) {
+				fprintf(out, "%s%c%s%s", bg_red, expected[i], reset, bg_dark_red);
+			} else if (color) {
+				fprintf(out, "%s%c", bg_dark_red, expected[i]);
+			} else {
+				fputc(expected[i], out);
+			}
+		}
+		fprintf(out, "%s\n", reset);
+
+		fprintf(out, "  %3zu +%s", line_num, color ? bg_dark_green : "");
+		for (size_t i = 0; i < act_len; i++) {
+			if (color && i >= diff_pos && (i >= exp_len || expected[i] != actual[i])) {
+				fprintf(out, "%s%c%s%s", bg_green, actual[i], reset, bg_dark_green);
+			} else if (color) {
+				fprintf(out, "%s%c", bg_dark_green, actual[i]);
+			} else {
+				fputc(actual[i], out);
+			}
+		}
+		fprintf(out, "%s\n", reset);
+	} else if (expected) {
+		fprintf(out, "  %3zu -%s%s%s\n", line_num, color ? bg_dark_red : "", expected, reset);
+	} else if (actual) {
+		fprintf(out, "  %3zu +%s%s%s\n", line_num, color ? bg_dark_green : "", actual, reset);
+	}
+}
+
+static void att_format_string_diff(FILE *out, const char *expected, const char *actual)
+{
+	att_string_lines exp_lines = att_split_lines(expected);
+	att_string_lines act_lines = att_split_lines(actual);
+
+	size_t max_lines = exp_lines.count > act_lines.count ? exp_lines.count : act_lines.count;
+
+	if (max_lines > 1) {
+		fprintf(out, "    String comparison failed (%zu lines):\n", max_lines);
+	}
+
+	for (size_t i = 0; i < max_lines; i++) {
+		const char *exp = i < exp_lines.count ? exp_lines.lines[i] : NULL;
+		const char *act = i < act_lines.count ? act_lines.lines[i] : NULL;
+		att_print_line_diff(out, i + 1, exp, act);
+	}
+
+	att_free_lines(&exp_lines);
+	att_free_lines(&act_lines);
+}
+
 void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
 {
 	bool eq = att_strings_equal(lhs, rhs);
@@ -807,11 +990,84 @@ void att_handle_string(int op, const char *assertion, const char *file, int line
 		return;
 	}
 
-	att_formatted lhs_fmt = att_format_string(lhs);
-	att_formatted rhs_fmt = att_format_string(rhs);
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
+	const att_test_case *test = att_context_current_test();
+	const char *test_name = test ? test->fullname : "<unknown>";
+	const char *fail_color = att_color_fail();
+	const char *file_color = att_color_file();
+	const char *reset = att_color_reset();
+	const char *phase = att_phase_tag(att_context_phase_current());
+	FILE *out = stderr;
+
+	bool suppress_default_output = (g_ctx && g_ctx->active && (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT));
+
+	bool has_newline = (lhs && strchr(lhs, '\n')) || (rhs && strchr(rhs, '\n'));
+
+	if (!suppress_default_output) {
+		fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
+		if (phase) {
+			fprintf(out, " (%s)", phase);
+		}
+		fprintf(out, "\n");
+	}
+	if (phase) {
+		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", test_name, phase);
+	} else {
+		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
+	}
+
+	for (int i = 0; i < g_ctx->info_stack_size; ++i) {
+		att_context_failure_append_format("  context: %s\n", g_ctx->info_stack[i]);
+	}
+	if (!suppress_default_output) {
+		for (int i = 0; i < g_ctx->info_stack_size; ++i) {
+			fprintf(out, "  context: %s\n", g_ctx->info_stack[i]);
+		}
+		fprintf(out, "%s  ", file_color);
+		if (phase) {
+			fprintf(out, "(%s) ", phase);
+		}
+		fprintf(out, "%s:%d: %s failed%s%s\n",
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".",
+			reset);
+	}
+	if (phase) {
+		att_context_failure_append_format("  (%s) %s:%d: %s failed%s\n",
+			phase,
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".");
+	} else {
+		att_context_failure_append_format("  %s:%d: %s failed%s\n",
+			file,
+			line,
+			assertion,
+			fatal ? " (fatal)." : ".");
+	}
+
+	if (has_newline && !suppress_default_output) {
+		att_format_string_diff(out, lhs, rhs);
+	} else {
+		att_formatted lhs_fmt = att_format_string(lhs);
+		att_formatted rhs_fmt = att_format_string(rhs);
+		if (!suppress_default_output) {
+			fprintf(out, "    expected: %s\n", lhs_fmt.text);
+			fprintf(out, "      actual: %s\n", rhs_fmt.text);
+		}
+		att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
+		att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
+
+		char expr[256];
+		att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+		if (!suppress_default_output) {
+			fprintf(out, "    expr: %s\n", expr);
+		}
+		att_context_failure_append_format("    expr: %s\n", expr);
+	}
+
 	if (fatal) {
 		att_context_abort();
 	}
