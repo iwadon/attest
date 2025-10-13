@@ -35,6 +35,8 @@ typedef struct att_context_state {
 	size_t failure_capacity;
 	bool timeout_triggered;
 	int timeout_ms;
+    char *info_stack[8];
+    int info_stack_size;
 } att_context_state;
 
 static att_context_state g_ctx_root;
@@ -174,6 +176,44 @@ att_context_phase att_context_phase_current(void)
 att_output_format att_context_get_format(void)
 {
 	return g_ctx->format;
+}
+
+void att_info_scope_push(const char *fmt, ...)
+{
+    if (!g_ctx || !g_ctx->active || g_ctx->info_stack_size >= 8) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    int needed = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+
+    if (needed < 0) {
+        return;
+    }
+
+    size_t size = (size_t)needed + 1;
+    char *buffer = malloc(size);
+    if (!buffer) {
+        return;
+    }
+
+    va_start(args, fmt);
+    vsnprintf(buffer, size, fmt, args);
+    va_end(args);
+
+    g_ctx->info_stack[g_ctx->info_stack_size++] = buffer;
+}
+
+void att_info_scope_pop_impl(void *unused)
+{
+    (void)unused;
+    if (g_ctx && g_ctx->active && g_ctx->info_stack_size > 0) {
+        --g_ctx->info_stack_size;
+        free(g_ctx->info_stack[g_ctx->info_stack_size]);
+        g_ctx->info_stack[g_ctx->info_stack_size] = NULL;
+    }
 }
 
 void att_context_fixture_enter(const char *fixture_name, size_t fixture_size, void *instance, att_fixture_hook teardown)
@@ -516,7 +556,14 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 	} else {
 		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
 	}
+
+	for (int i = 0; i < g_ctx->info_stack_size; ++i) {
+		att_context_failure_append_format("  context: %s\n", g_ctx->info_stack[i]);
+	}
 	if (!suppress_default_output) {
+		for (int i = 0; i < g_ctx->info_stack_size; ++i) {
+			fprintf(out, "  context: %s\n", g_ctx->info_stack[i]);
+		}
 		fprintf(out, "%s  ", file_color);
 		if (phase) {
 			fprintf(out, "(%s) ", phase);

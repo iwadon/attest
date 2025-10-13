@@ -65,10 +65,20 @@ static void manual_register_function(void)
 static void att_formatting_eq_failure(void *user)
 {
 	(void)user;
+    SCOPED_INFO("context from eq failure");
 	int expected = 42;
 	int actual = 24;
 	EXPECT_EQ(expected, actual);
 }
+
+static void scoped_info_failure(void *user)
+{
+    (void)user;
+    SCOPED_INFO("i=%d", 5);
+    EXPECT_TRUE(false);
+}
+
+
 
 TEST(Sanity, Passes)
 {
@@ -211,7 +221,36 @@ TEST(Output, EqualityFailureFormatting)
 
 	const char *expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
 	ASSERT_TRUE(expr_line != NULL);
+
+	const char *context_line = strstr(captured.data, "  context: context from eq failure");
+	ASSERT_TRUE(context_line != NULL);
+
 	free(captured.data);
+}
+
+TEST(ScopedInfo, ReportsContextOnFailure)
+{
+    ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+
+    att_captured captured;
+    ASSERT_EQ(0, att_capture_begin());
+
+    att_subtest_scope *scope = att_subtest_scope_enter("scoped_info");
+    if (att_subtest_scope_protect(scope) == 0) {
+        scoped_info_failure(NULL);
+    }
+    att_result result;
+    att_status status = att_subtest_scope_leave(scope, &result);
+
+    ASSERT_EQ(0, att_capture_end(&captured));
+
+    ASSERT_EQ(ATT_STATUS_FAIL, status);
+    ASSERT_EQ(1, result.failed);
+    ASSERT_TRUE(captured.data != NULL);
+
+    const char *expected_line = strstr(captured.data, "  context: i=5");
+    ASSERT_TRUE(expected_line != NULL);
+    free(captured.data);
 }
 
 TEST(Capture, CapturesStderr)

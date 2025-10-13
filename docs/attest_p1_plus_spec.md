@@ -5,11 +5,7 @@
 ---
 
 ## 1. 比較・検証強化
-### 1.1 相対誤差・ULP 比較 (浮動小数点)
-- `*_NEAR_REL(a, b, rel_eps)`：相対誤差判定。
-- `*_ULP_EQ(a, b, max_ulp)`：ULP 差比較。
-
-### 1.2 型拡張
+### 1.1 型拡張
 - `long double` / `_Decimal64` / `_Float128` など拡張浮動小数型の対応。
 - C89/90 向け：`EXPECT_INT_EQ` などの明示型付きマクロ群を提供。
 
@@ -23,18 +19,7 @@
 ---
 
 ## 3. 拡張 API
-### 3.1 SCOPED_INFO
-- コンテキスト文字列をスコープ単位でスタックに積み、失敗時に追加出力。
-```c
-SCOPED_INFO("iteration=%d", i);
-EXPECT_EQ(result, expected);
-```
-出力：
-```
-  context: iteration=5
-```
-
-### 3.2 カスタムアサーション
+### 3.1 カスタムアサーション
 - `ATT_ASSERT(expr, message)`：単純な布告型アサート。
 - `ATT_EXPECT(predicate_fn, context)`：関数を評価して非致命失敗を判定。
 
@@ -71,7 +56,7 @@ EXPECT_EQ(result, expected);
 | 段階 | 内容 |
 |------|------|
 | P1 | フィクスチャ、スキップ、TAP/JUnit、タイムアウト（詳細は `docs/attest_p1_spec.md`） |
-| P1.1 | SCOPED_INFO、相対誤差、ULP 比較 |
+| P1.1 | 詳細は `docs/attest_p1.1_spec.md` を参照 |
 | P1.2 | 並列実行、カスタムアサーション |
 | P2 | JSON 出力、ベンチマーク、モック |
 

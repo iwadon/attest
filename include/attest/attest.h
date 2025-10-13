@@ -80,6 +80,15 @@ void att_fixture_register_teardown(const char *fixture_name, size_t fixture_size
 void att_fixture_run(const char *fixture_name, size_t fixture_size, att_fixture_body_fn body_fn);
 void att_skip(const char *reason);
 
+typedef struct att_info_scope att_info_scope_t;
+
+void att_info_scope_push(const char *fmt, ...);
+void att_info_scope_pop_impl(void *unused);
+
+struct att_info_scope {
+    int dummy;
+};
+
 #define ATT_GENERIC_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
 	_Generic((lhs_value),                                                                        \
 		char: att_handle_compare_signed,                                                         \
@@ -230,6 +239,10 @@ void att_skip(const char *reason);
 #define ATT_CONCAT(a, b) ATT_CONCAT_INNER(a, b)
 #define ATT_CONCAT3(a, b, c) ATT_CONCAT(ATT_CONCAT(a, b), c)
 #define ATT_SUFFIX(name) _##name
+
+#define SCOPED_INFO(fmt, ...) \
+    att_info_scope_push(fmt, ##__VA_ARGS__); \
+    att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = {0}
 
 #if defined(__COUNTER__)
 #define ATT_UNIQUE_ID(prefix) ATT_CONCAT(prefix, __COUNTER__)
