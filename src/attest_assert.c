@@ -813,7 +813,13 @@ void att_handle_compare_signed(int op, const char *assertion, const char *file, 
 	}
 
 	att_formatted lhs_fmt = att_format_signed(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_signed(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
@@ -831,7 +837,13 @@ void att_handle_compare_unsigned(int op, const char *assertion, const char *file
 	}
 
 	att_formatted lhs_fmt = att_format_unsigned(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_unsigned(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
@@ -869,7 +881,13 @@ void att_handle_compare_double(int op, const char *assertion, const char *file, 
 	}
 
 	att_formatted lhs_fmt = att_format_double(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_double(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
@@ -914,7 +932,13 @@ void att_handle_compare_pointer(int op, const char *assertion, const char *file,
 	}
 
 	att_formatted lhs_fmt = att_format_pointer(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_pointer(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
@@ -1187,7 +1211,13 @@ void att_handle_string(int op, const char *assertion, const char *file, int line
 		att_format_string_diff(out, lhs, rhs);
 	} else {
 		att_formatted lhs_fmt = att_format_string(lhs);
+		if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+			lhs_fmt.text = lhs_fmt.buffer;
+		}
 		att_formatted rhs_fmt = att_format_string(rhs);
+		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+			rhs_fmt.text = rhs_fmt.buffer;
+		}
 		if (!suppress_default_output) {
 			fprintf(out, "    expected: %s\n", lhs_fmt.text);
 			fprintf(out, "      actual: %s\n", rhs_fmt.text);
@@ -1252,7 +1282,13 @@ void att_handle_memory(const char *assertion, const char *file, int line, bool f
 	}
 
 	att_formatted lhs_fmt = att_format_pointer(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_pointer(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 
@@ -1282,8 +1318,17 @@ void att_handle_near(const char *assertion, const char *file, int line, bool fat
 	}
 
 	att_formatted lhs_fmt = att_format_double(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
 	att_formatted rhs_fmt = att_format_double(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
 	att_formatted eps_fmt = att_format_double(epsilon);
+	if (eps_fmt.text == NULL || eps_fmt.buffer[0] != '\0') {
+		eps_fmt.text = eps_fmt.buffer;
+	}
 	char expr[256];
 	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 
@@ -1301,6 +1346,9 @@ void att_handle_near(const char *assertion, const char *file, int line, bool fat
 		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
 	} else {
 		att_formatted diff_fmt = att_format_double(diff);
+		if (diff_fmt.text == NULL || diff_fmt.buffer[0] != '\0') {
+			diff_fmt.text = diff_fmt.buffer;
+		}
 		snprintf(actual_buf, sizeof(actual_buf), "|lhs - rhs| = %s", diff_fmt.text);
 	}
 
