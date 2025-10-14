@@ -1243,15 +1243,20 @@ struct att_subtest_scope {
 
 static att_subtest_scope *att_subtest_scope_allocate(void)
 {
-	// Use aligned_alloc for ARM64 sigjmp_buf alignment requirements
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__APPLE__)
+	/* C11 aligned_alloc for better alignment on Linux ARM64 */
 	size_t size = sizeof(att_subtest_scope);
-	size_t alignment = 16;
-	// aligned_alloc requires size to be multiple of alignment
-	size_t aligned_size = ((size + alignment - 1) / alignment) * alignment;
-	att_subtest_scope *scope = aligned_alloc(alignment, aligned_size);
+	size_t aligned_size = (size + 15) & ~15;
+	att_subtest_scope *scope = aligned_alloc(16, aligned_size);
 	if (scope) {
 		memset(scope, 0, aligned_size);
 	}
+#else
+	att_subtest_scope *scope = malloc(sizeof(*scope));
+	if (scope) {
+		memset(scope, 0, sizeof(*scope));
+	}
+#endif
 	return scope;
 }
 

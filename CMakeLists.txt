@@ -25,18 +25,19 @@ target_include_directories(attest
 target_compile_definitions(attest PRIVATE _POSIX_C_SOURCE=200809L)
 
 # ARM64 GCC workaround for setjmp/longjmp stack alignment issues
+# See: https://gcc.gnu.org/bugzilla/ (GCC 14.2.0 ARM64 sigsetjmp/siglongjmp bug)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        # GCC 14.x on ARM64 has known issues with sigjmp_buf/setjmp/longjmp
-        # These flags help mitigate the problem but may not fully resolve it
-        message(WARNING "GCC ${CMAKE_C_COMPILER_VERSION} on ARM64 detected. "
-                "Known issues with setjmp/longjmp. Applying workaround flags. "
-                "If tests crash, please use Clang: cmake -DCMAKE_C_COMPILER=clang")
         target_compile_options(attest PRIVATE
             -fno-omit-frame-pointer
             -fno-optimize-sibling-calls
-            -O1  # Lower optimization level for GCC 14.x ARM64
         )
+        # GCC 14.x specific workaround
+        if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "14.0" AND
+           CMAKE_C_COMPILER_VERSION VERSION_LESS "15.0")
+            target_compile_options(attest PRIVATE -O1)
+            message(WARNING "GCC 14 on ARM64 detected. Using -O1 workaround for sigsetjmp/siglongjmp bug. Consider using Clang for ARM64 builds.")
+        endif()
     endif()
 endif()
 

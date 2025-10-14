@@ -217,7 +217,8 @@ cmake -S . -B build -DATTEST_BUILD_TESTING=ON
 ## Compiler Support
 
 - **GCC**: 5.0+ (C11 support required)
-- **Clang**: 3.1+ (C11 support required)
+  - ⚠️ **Known Issue**: GCC 14.2.0 on ARM64/aarch64 (Ubuntu 25.04) has a `sigsetjmp/siglongjmp` bug causing crashes. **Workaround**: Use Clang or GCC 13.x on ARM64 platforms.
+- **Clang**: 3.1+ (C11 support required) - **Recommended for ARM64**
 - **MSVC**: 2015+ (partial support, uses `.CRT$XCU` section for auto-registration)
 
 ### Known Issues
