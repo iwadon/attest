@@ -37,9 +37,9 @@ typedef struct att_context_state {
 	int timeout_ms;
     char *info_stack[8];
     int info_stack_size;
-} att_context_state;
+} __attribute__((aligned(16))) att_context_state;
 
-static att_context_state g_ctx_root;
+static att_context_state g_ctx_root __attribute__((aligned(16)));
 static att_context_state *g_ctx = &g_ctx_root;
 
 static char *att_dup_string(const char *text);
@@ -1243,9 +1243,14 @@ struct att_subtest_scope {
 
 static att_subtest_scope *att_subtest_scope_allocate(void)
 {
-	att_subtest_scope *scope = malloc(sizeof(*scope));
+	// Use aligned_alloc for ARM64 sigjmp_buf alignment requirements
+	size_t size = sizeof(att_subtest_scope);
+	size_t alignment = 16;
+	// aligned_alloc requires size to be multiple of alignment
+	size_t aligned_size = ((size + alignment - 1) / alignment) * alignment;
+	att_subtest_scope *scope = aligned_alloc(alignment, aligned_size);
 	if (scope) {
-		memset(scope, 0, sizeof(*scope));
+		memset(scope, 0, aligned_size);
 	}
 	return scope;
 }

@@ -220,6 +220,13 @@ cmake -S . -B build -DATTEST_BUILD_TESTING=ON
 - **Clang**: 3.1+ (C11 support required)
 - **MSVC**: 2015+ (partial support, uses `.CRT$XCU` section for auto-registration)
 
+### Known Issues
+
+- **ARM64 Linux with GCC 14.2.0**: A compiler-specific issue with `sigjmp_buf`/`setjmp`/`longjmp` causes runtime crashes. Use Clang as a workaround:
+  ```bash
+  cmake -S . -B build -DCMAKE_C_COMPILER=clang
+  ```
+
 For compilers without constructor attribute support, use manual registration:
 
 ```c

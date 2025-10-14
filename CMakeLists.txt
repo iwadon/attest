@@ -21,10 +21,22 @@ target_include_directories(attest
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# POSIXシグナル機能のために_POSIX_C_SOURCEを定義
+target_compile_definitions(attest PRIVATE _POSIX_C_SOURCE=200809L)
+
 # ARM64 GCC workaround for setjmp/longjmp stack alignment issues
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(attest PRIVATE -fno-omit-frame-pointer)
+        # GCC 14.x on ARM64 has known issues with sigjmp_buf/setjmp/longjmp
+        # These flags help mitigate the problem but may not fully resolve it
+        message(WARNING "GCC ${CMAKE_C_COMPILER_VERSION} on ARM64 detected. "
+                "Known issues with setjmp/longjmp. Applying workaround flags. "
+                "If tests crash, please use Clang: cmake -DCMAKE_C_COMPILER=clang")
+        target_compile_options(attest PRIVATE
+            -fno-omit-frame-pointer
+            -fno-optimize-sibling-calls
+            -O1  # Lower optimization level for GCC 14.x ARM64
+        )
     endif()
 endif()
 
@@ -50,6 +62,7 @@ if(ATTEST_BUILD_TESTING)
 
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
 
   add_test(NAME attest_selftest COMMAND attest_selftest)
 endif()
