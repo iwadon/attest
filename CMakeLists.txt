@@ -27,14 +27,22 @@ add_executable(attest_runner
 
 target_link_libraries(attest_runner PRIVATE attest)
 
-enable_testing()
+# テストのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  option(ATTEST_BUILD_TESTING "Build attest self-tests" ON)
+else()
+  option(ATTEST_BUILD_TESTING "Build attest self-tests" OFF)
+endif()
 
-add_executable(attest_selftest
-    tests/selftest_main.c
-)
+if(ATTEST_BUILD_TESTING)
+  enable_testing()
 
-target_link_libraries(attest_selftest PRIVATE attest)
+  add_executable(attest_selftest
+      tests/selftest_main.c
+  )
 
-target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(attest_selftest PRIVATE attest)
+  target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-add_test(NAME attest_selftest COMMAND attest_selftest)
+  add_test(NAME attest_selftest COMMAND attest_selftest)
+endif()
