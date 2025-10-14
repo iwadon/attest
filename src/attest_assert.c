@@ -49,6 +49,8 @@ typedef struct att_context_state {
 #ifdef ATT_PLATFORM_WINDOWS
 	HANDLE timeout_thread;
 	HANDLE timeout_event;
+	bool timeout_init_failed;
+	unsigned int timeout_check_counter;
 #endif
 } ATT_ALIGN(16) att_context_state;
 
@@ -75,6 +77,12 @@ static void att_timeout_signal_handler(int signo)
 
 void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format)
 {
+#ifdef ATT_PLATFORM_WINDOWS
+	/* Clean up any leftover timeout resources before clearing context */
+	if (g_ctx->timeout_thread || g_ctx->timeout_event) {
+		att_context_timeout_stop();
+	}
+#endif
 	memset(g_ctx, 0, sizeof(*g_ctx));
 	g_ctx->test = test;
 	g_ctx->color_enabled = color_enabled;
@@ -137,12 +145,15 @@ void att_context_record_assert(bool fatal, bool passed)
 		return;
 	}
 #ifdef ATT_PLATFORM_WINDOWS
-	/* Check for timeout on Windows */
+	/* Check for timeout on Windows (throttled to reduce overhead) */
 	if (g_ctx->timeout_event) {
-		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_event, 0);
-		if (wait_result == WAIT_OBJECT_0 && g_ctx->timeout_triggered) {
-			att_context_abort();
-			return;
+		/* Check every 32 assertions to minimize WaitForSingleObject overhead */
+		if ((g_ctx->timeout_check_counter++ & 0x1F) == 0) {
+			DWORD wait_result = WaitForSingleObject(g_ctx->timeout_event, 0);
+			if (wait_result == WAIT_OBJECT_0 && g_ctx->timeout_triggered) {
+				att_context_abort();
+				return;
+			}
 		}
 	}
 #endif
@@ -408,12 +419,16 @@ void att_context_timeout_stop(void)
 static unsigned __stdcall att_timeout_thread_proc(void *arg)
 {
 	int timeout_ms = (int)(intptr_t)arg;
-	Sleep((DWORD)timeout_ms);
 
-	if (g_ctx && g_ctx->active && !g_ctx->timeout_triggered) {
-		g_ctx->timeout_triggered = true;
-		/* Signal the event to indicate timeout occurred */
-		if (g_ctx->timeout_event) {
+	/* Use WaitForSingleObject instead of Sleep to allow early cancellation */
+	if (g_ctx && g_ctx->timeout_event) {
+		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_event, (DWORD)timeout_ms);
+
+		/* WAIT_TIMEOUT means the timeout expired (expected path) */
+		/* WAIT_OBJECT_0 means the event was signaled (early cancellation) */
+		if (wait_result == WAIT_TIMEOUT && g_ctx->active && !g_ctx->timeout_triggered) {
+			g_ctx->timeout_triggered = true;
+			/* Signal the event to indicate timeout occurred */
 			SetEvent(g_ctx->timeout_event);
 		}
 	}
@@ -432,10 +447,15 @@ void att_context_timeout_start(int timeout_ms)
 
 	g_ctx->timeout_triggered = false;
 	g_ctx->timeout_ms = timeout_ms;
+	g_ctx->timeout_init_failed = false;
+	g_ctx->timeout_check_counter = 0;
 
 	/* Create event for timeout signaling */
 	g_ctx->timeout_event = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (!g_ctx->timeout_event) {
+		fprintf(stderr, "Warning: Failed to create timeout event. Timeout feature disabled.\n");
+		g_ctx->timeout_init_failed = true;
+		g_ctx->timeout_ms = 0;
 		return;
 	}
 
@@ -450,8 +470,11 @@ void att_context_timeout_start(int timeout_ms)
 	);
 
 	if (!g_ctx->timeout_thread) {
+		fprintf(stderr, "Warning: Failed to create timeout thread. Timeout feature disabled.\n");
 		CloseHandle(g_ctx->timeout_event);
 		g_ctx->timeout_event = NULL;
+		g_ctx->timeout_init_failed = true;
+		g_ctx->timeout_ms = 0;
 	}
 }
 
@@ -462,8 +485,18 @@ void att_context_timeout_stop(void)
 	}
 
 	if (g_ctx->timeout_thread) {
-		/* Wait for thread to complete (with short timeout) */
-		WaitForSingleObject(g_ctx->timeout_thread, 100);
+		/* Signal the event to wake up the timeout thread early */
+		if (g_ctx->timeout_event) {
+			SetEvent(g_ctx->timeout_event);
+		}
+
+		/* Wait for thread to complete with reasonable timeout (1 second should be enough) */
+		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_thread, 1000);
+		if (wait_result == WAIT_TIMEOUT) {
+			/* Thread didn't finish in time - this shouldn't happen with the new implementation
+			   but we handle it gracefully to avoid hanging */
+			fprintf(stderr, "Warning: Timeout thread did not terminate in time\n");
+		}
 		CloseHandle(g_ctx->timeout_thread);
 		g_ctx->timeout_thread = NULL;
 	}

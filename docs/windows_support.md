@@ -211,7 +211,7 @@ PS> .\build\Debug\attest_timeout_test.exe --timeout-ms=50
 .\build\Debug\attest_selftest.exe --no-color
 
 # タイムアウト付きで実行（50ミリ秒）
-.\build\Debug\attest_runner.exe --timeout-ms=50
+.\build\Debug\attest_timeout_test.exe --timeout-ms=50
 ```
 
 ## 今後の改善項目

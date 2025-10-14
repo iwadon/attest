@@ -238,8 +238,6 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 		att_context_capture_failures(junit_mode);
 		if (opts->timeout_ms > 0) {
 			att_context_timeout_start(opts->timeout_ms);
-		} else {
-			att_context_timeout_stop();
 		}
 		int protect_rc = att_context_protect();
 		if (protect_rc == 0) {
@@ -247,7 +245,9 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 		}
 		att_test_result result;
 		att_context_end(&result);
-		att_context_timeout_stop();
+		if (opts->timeout_ms > 0) {
+			att_context_timeout_stop();
+		}
 		++summary->tests_run;
 		summary->assertions_total += result.assertions_total;
 		++tap_index;
