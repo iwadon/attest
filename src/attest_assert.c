@@ -37,9 +37,9 @@ typedef struct att_context_state {
 	int timeout_ms;
     char *info_stack[8];
     int info_stack_size;
-} att_context_state;
+} __attribute__((aligned(16))) att_context_state;
 
-static att_context_state g_ctx_root;
+static att_context_state g_ctx_root __attribute__((aligned(16)));
 static att_context_state *g_ctx = &g_ctx_root;
 
 static char *att_dup_string(const char *text);
@@ -1243,7 +1243,14 @@ struct att_subtest_scope {
 
 static att_subtest_scope *att_subtest_scope_allocate(void)
 {
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__APPLE__)
+	/* C11 aligned_alloc for better alignment on Linux ARM64 */
+	size_t size = sizeof(att_subtest_scope);
+	size_t aligned_size = (size + 15) & ~15;
+	att_subtest_scope *scope = aligned_alloc(16, aligned_size);
+#else
 	att_subtest_scope *scope = malloc(sizeof(*scope));
+#endif
 	if (scope) {
 		memset(scope, 0, sizeof(*scope));
 	}

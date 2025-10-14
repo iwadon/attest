@@ -113,3 +113,23 @@ When implementing new features:
 - **Test isolation**: Each `TEST()` runs in its own `setjmp` context. Subtests via `att_run_subtest()` run in nested contexts and don't affect parent test execution.
 - **String comparison**: `NULL` == `NULL` is true; `NULL` vs non-NULL is false; output shows `"(null)"` for NULL pointers
 - **Floating-point**: `NEAR` assertions use `fabs(a - b) <= epsilon`; NaN always fails; ±infinity matches only with same sign
+
+## Known Issues
+
+### GCC 14.2.0 ARM64 sigsetjmp/siglongjmp Bug
+
+**Platform**: ARM64/aarch64 (Ubuntu 25.04)
+**Compiler**: GCC 14.2.0
+**Symptom**: SIGILL crash when running full test suite, individual tests work fine
+**Cause**: GCC 14.2.0 ARM64 backend has a bug in `sigsetjmp/siglongjmp` implementation that corrupts the return address (x30 register) and stack frame
+**Workaround**:
+1. **Recommended**: Use Clang instead of GCC on ARM64 platforms
+2. **Alternative**: Use GCC 13.x or wait for GCC 14.3+ with fix
+3. **Applied mitigations** (partial workaround):
+   - `sigjmp_buf` with explicit 16-byte alignment and `volatile` qualifier
+   - Structure and static variable alignment attributes
+   - `-fno-omit-frame-pointer` and `-fno-optimize-sibling-calls` flags
+   - `-O1` optimization level for GCC 14.x on ARM64 (automatic)
+   - C11 `aligned_alloc()` for heap-allocated contexts on Linux
+
+**Implementation**: See `src/attest_assert.c:17-42` and `CMakeLists.txt:24-39`
