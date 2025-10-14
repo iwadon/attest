@@ -127,7 +127,31 @@ TEST_F(BufferFixture, Initialization) {
 
 # Disable color output
 ./build/attest_selftest --no-color
+
+# Set timeout for each test (in milliseconds)
+./build/attest_selftest --timeout-ms=5000
 ```
+
+### Manual Timeout Verification
+
+The `attest_timeout_test` binary contains tests specifically designed to verify timeout functionality. These tests are **not** part of the automated test suite because they require explicit timeout configuration and are expected to fail:
+
+```bash
+# Quick timeout test (should fail with timeout after 50ms)
+./build/attest_timeout_test --timeout-ms=50
+
+# Timeout in assertion loop (requires environment variable + timeout)
+# On Windows: $env:ATTEST_ENABLE_TIMEOUT_WITH_ASSERTS_TEST="1"
+# On Unix: export ATTEST_ENABLE_TIMEOUT_WITH_ASSERTS_TEST=1
+./build/attest_timeout_test --timeout-ms=100 --filter=Timeout.WithAsserts
+
+# Infinite loop timeout test (requires environment variable + timeout)
+# On Windows: $env:ATTEST_ENABLE_TIMEOUT_TEST="1"
+# On Unix: export ATTEST_ENABLE_TIMEOUT_TEST=1
+./build/attest_timeout_test --timeout-ms=50 --filter=Timeout.InfiniteLoop
+```
+
+**Note**: These tests are designed to **fail** by timing out. This verifies that the timeout mechanism works correctly.
 
 ## Advanced Features
 

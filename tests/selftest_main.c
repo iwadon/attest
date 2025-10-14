@@ -161,28 +161,6 @@ TEST(Skip, SubtestRecordsSkip)
 	EXPECT_EQ(0, result.failed);
 }
 
-TEST(Timeout, Trigger)
-{
-	const char *env = getenv("ATTEST_ENABLE_TIMEOUT_TEST");
-	if (!env) {
-		ATT_SKIP("timeout test disabled");
-	}
-	for (;;) {
-	}
-}
-
-TEST(Timeout, WithAsserts)
-{
-	const char *env = getenv("ATTEST_ENABLE_TIMEOUT_WITH_ASSERTS_TEST");
-	if (!env) {
-		ATT_SKIP("timeout test disabled");
-	}
-	/* This test should timeout during the infinite loop with assertions */
-	for (int i = 0; ; ++i) {
-		EXPECT_TRUE(true);  /* Keep asserting so Windows can check timeout */
-	}
-}
-
 TEST(Subtest, ReportsFailures)
 {
 	att_result result;
