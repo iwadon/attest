@@ -119,11 +119,11 @@ TEST_F(BufferFixture, Initialization) {
 ./build/attest_selftest --list
 
 # Run specific tests (wildcard support)
-./build/attest_selftest --filter=Math.*
-./build/attest_selftest --filter=*.Addition
+./build/attest_selftest --filter='Math.*'
+./build/attest_selftest --filter='*.Addition'
 
 # Multiple filters (OR logic)
-./build/attest_selftest --filter="Math.*;String.Comparison"
+./build/attest_selftest --filter='Math.*;String.Comparison'
 
 # Disable color output
 ./build/attest_selftest --no-color
