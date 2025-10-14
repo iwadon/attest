@@ -17,6 +17,12 @@
 	#include <sys/time.h>
 #endif
 
+#ifdef ATT_PLATFORM_WINDOWS
+	#define WIN32_LEAN_AND_MEAN
+	#include <windows.h>
+	#include <process.h>
+#endif
+
 typedef struct att_context_state {
 	ATT_ALIGN(16) att_jmp_buf abort_env;
 	const att_test_case *test;
@@ -40,6 +46,10 @@ typedef struct att_context_state {
 	int timeout_ms;
     char *info_stack[8];
     int info_stack_size;
+#ifdef ATT_PLATFORM_WINDOWS
+	HANDLE timeout_thread;
+	HANDLE timeout_event;
+#endif
 } ATT_ALIGN(16) att_context_state;
 
 static ATT_ALIGN(16) att_context_state g_ctx_root;
@@ -126,6 +136,16 @@ void att_context_record_assert(bool fatal, bool passed)
 	if (!g_ctx->active) {
 		return;
 	}
+#ifdef ATT_PLATFORM_WINDOWS
+	/* Check for timeout on Windows */
+	if (g_ctx->timeout_event) {
+		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_event, 0);
+		if (wait_result == WAIT_OBJECT_0 && g_ctx->timeout_triggered) {
+			att_context_abort();
+			return;
+		}
+	}
+#endif
 	++g_ctx->result.assertions_total;
 	if (!passed) {
 		att_context_register_failure(fatal);
@@ -151,7 +171,10 @@ void att_context_abort(void)
 	}
 	g_ctx->result.aborted = true;
 	att_context_fixture_on_abort();
+	/* Save timeout_ms before stopping, as stop clears it */
+	int saved_timeout_ms = g_ctx->timeout_ms;
 	att_context_timeout_stop();
+	g_ctx->timeout_ms = saved_timeout_ms;
 	att_longjmp(g_ctx->abort_env, 1);
 }
 
@@ -381,16 +404,76 @@ void att_context_timeout_stop(void)
 	}
 }
 #else
-/* Windows: Timeout feature not yet implemented */
+/* Windows: Timeout feature using threads */
+static unsigned __stdcall att_timeout_thread_proc(void *arg)
+{
+	int timeout_ms = (int)(intptr_t)arg;
+	Sleep((DWORD)timeout_ms);
+
+	if (g_ctx && g_ctx->active && !g_ctx->timeout_triggered) {
+		g_ctx->timeout_triggered = true;
+		/* Signal the event to indicate timeout occurred */
+		if (g_ctx->timeout_event) {
+			SetEvent(g_ctx->timeout_event);
+		}
+	}
+
+	return 0;
+}
+
 void att_context_timeout_start(int timeout_ms)
 {
-	(void)timeout_ms;
-	/* TODO: Implement Windows timeout using threads and WaitForSingleObject */
+	if (!g_ctx->active || timeout_ms <= 0) {
+		return;
+	}
+
+	/* Clean up any existing timeout */
+	att_context_timeout_stop();
+
+	g_ctx->timeout_triggered = false;
+	g_ctx->timeout_ms = timeout_ms;
+
+	/* Create event for timeout signaling */
+	g_ctx->timeout_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (!g_ctx->timeout_event) {
+		return;
+	}
+
+	/* Create timeout thread */
+	g_ctx->timeout_thread = (HANDLE)_beginthreadex(
+		NULL,
+		0,
+		att_timeout_thread_proc,
+		(void*)(intptr_t)timeout_ms,
+		0,
+		NULL
+	);
+
+	if (!g_ctx->timeout_thread) {
+		CloseHandle(g_ctx->timeout_event);
+		g_ctx->timeout_event = NULL;
+	}
 }
 
 void att_context_timeout_stop(void)
 {
-	/* TODO: Implement Windows timeout cleanup */
+	if (!g_ctx) {
+		return;
+	}
+
+	if (g_ctx->timeout_thread) {
+		/* Wait for thread to complete (with short timeout) */
+		WaitForSingleObject(g_ctx->timeout_thread, 100);
+		CloseHandle(g_ctx->timeout_thread);
+		g_ctx->timeout_thread = NULL;
+	}
+
+	if (g_ctx->timeout_event) {
+		CloseHandle(g_ctx->timeout_event);
+		g_ctx->timeout_event = NULL;
+	}
+
+	g_ctx->timeout_ms = 0;
 }
 #endif
 static const char *att_color_fail(void)

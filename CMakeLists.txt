@@ -73,11 +73,17 @@ if(ATTEST_BUILD_TESTING)
 
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  
+
   # Platform-specific compile definitions for tests
   if(NOT WIN32)
       target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
   endif()
 
   add_test(NAME attest_selftest COMMAND attest_selftest)
+
+  # Timeout test executable (for manual testing)
+  add_executable(attest_timeout_test
+      tests/timeout_test.c
+  )
+  target_link_libraries(attest_timeout_test PRIVATE attest)
 endif()

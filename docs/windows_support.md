@@ -64,10 +64,21 @@ typedef att_jmp_buf;
 
 ### 5. タイムアウト機能
 
-タイムアウト機能はPOSIXのシグナルとタイマーに依存：
+タイムアウト機能はプラットフォームごとに異なる実装：
 
-- **POSIX**: `sigaction()`, `setitimer()` を使用して完全サポート
-- **Windows**: 現在は未実装（スタブ関数のみ）
+- **POSIX**: `sigaction()`, `setitimer()` を使用したシグナルベースの実装
+- **Windows**: スレッドと `WaitForSingleObject()` を使用したポーリングベースの実装
+
+#### Windows実装の詳細
+
+Windowsでは以下の仕組みでタイムアウトを実現：
+
+1. **タイマースレッド**: `_beginthreadex()` で別スレッドを作成し、指定時間スリープ
+2. **イベントオブジェクト**: タイムアウト発生を通知するための `CreateEvent()`
+3. **ポーリングチェック**: 各assertマクロ実行時に `WaitForSingleObject()` でタイムアウトをチェック
+4. **クリーンアップ**: テスト終了時にスレッドとイベントを適切に破棄
+
+この実装により、POSIXのシグナル割り込みと同様の動作を実現しています。
 
 ### 6. ビルドシステム
 
@@ -116,13 +127,31 @@ cmake --build build
 
 ## 既知の制限事項
 
-### 1. タイムアウト機能（Windows）
+### 1. Windows タイムアウト実装の制約
 
-現在、Windows版ではタイムアウト機能が実装されていません。
+Windows版のタイムアウトはポーリングベースのため、以下の制約があります：
 
-**影響**: `--timeout` オプションは無視されます。
+**制約**: assertマクロ（`EXPECT_*`, `ASSERT_*`など）が呼ばれないとタイムアウトが検出されません。
 
-**今後の対応**: Windows APIのスレッドとタイマーを使用した実装を予定。
+**影響**: 以下のようなコードではタイムアウトが機能しません：
+```c
+TEST(Infinite, Loop) {
+    for (;;) {
+        /* assertマクロがないため、タイムアウト検出されない */
+    }
+}
+```
+
+**回避策**: assertマクロを定期的に呼び出すようにテストを記述：
+```c
+TEST(Infinite, LoopWithAssert) {
+    for (int i = 0; ; ++i) {
+        EXPECT_TRUE(true);  /* タイムアウトチェックが行われる */
+    }
+}
+```
+
+**技術詳細**: POSIXではシグナルによる非同期割り込みが可能ですが、Windowsでは別スレッドから`longjmp`を呼び出せないため、メインスレッドでポーリングチェックする必要があります。将来的には、テスト本体を別スレッドで実行する実装に移行することで、この制約を解消できます。
 
 ### 2. SCOPED_INFO の自動クリーンアップ（MSVC）
 
@@ -134,13 +163,25 @@ MSVCは `__attribute__((cleanup))` をサポートしていないため、`SCOPE
 
 ## 動作確認
 
-Windows環境でのセルフテスト結果：
+Windows環境でのセルフテスト結果（タイムアウト対応後）：
 
 ```
-[==========] Running 21 tests from 11 suites.
+[==========] Running 22 tests from 11 suites.
 [  PASSED  ] 18 tests.
-[  FAILED  ] 1 tests (出力フォーマットの差異によるテストの失敗)
-[  SKIPPED ] 2 tests (タイムアウトテスト)
+[  SKIPPED ] 3 tests (環境変数で制御されるテスト)
+[  FAILED  ] 1 tests (意図的な失敗テスト)
+```
+
+タイムアウト機能のテスト：
+
+```powershell
+PS> .\build\Debug\attest_timeout_test.exe --timeout-ms=50
+[==========] Running 1 tests from 1 suites.
+[  FAILED  ] QuickTimeout.ShouldTimeout
+  reason: timeout after 50 ms
+[==========] 1 tests ran. 1 failures.
+[  FAILED  ] 1 tests.
+[----------] timeouts: 1
 ```
 
 主要な機能は正常に動作しています：
@@ -152,7 +193,7 @@ Windows環境でのセルフテスト結果：
 - ✅ --filter によるテストフィルタリング
 - ✅ --list によるテスト一覧
 - ✅ カラー出力の制御
-- ⚠️ タイムアウト機能（未実装）
+- ✅ タイムアウト機能（assertベースの制約あり）
 
 ## テスト実行例
 
@@ -168,11 +209,14 @@ Windows環境でのセルフテスト結果：
 
 # 色付きなしで実行
 .\build\Debug\attest_selftest.exe --no-color
+
+# タイムアウト付きで実行（50ミリ秒）
+.\build\Debug\attest_runner.exe --timeout-ms=50
 ```
 
 ## 今後の改善項目
 
-1. **Windows タイムアウト実装**: CreateThread + WaitForSingleObject を使用
+1. **Windows タイムアウトの完全な非同期化**: テスト本体を別スレッドで実行してassertなしでもタイムアウト検出
 2. **MSVC cleanup 代替**: 独自のスコープガード実装を検討
 3. **CI/CD**: GitHub Actions でWindows/Linux両方でのビルド・テストを自動化
 4. **ドキュメント**: Windows特有の注意事項をREADME.mdに追記
