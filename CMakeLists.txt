@@ -21,6 +21,13 @@ target_include_directories(attest
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# ARM64 GCC workaround for setjmp/longjmp stack alignment issues
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(attest PRIVATE -fno-omit-frame-pointer)
+    endif()
+endif()
+
 add_executable(attest_runner
     src/attest_main.c
 )

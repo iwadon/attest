@@ -15,11 +15,11 @@
 #include "internal/attest_internal.h"
 
 typedef struct att_context_state {
+	sigjmp_buf abort_env __attribute__((aligned(16)));
 	const att_test_case *test;
 	bool active;
 	bool color_enabled;
 	att_output_format format;
-	sigjmp_buf abort_env;
 	att_test_result result;
 	struct att_context_state *previous;
 	att_context_phase phase;
