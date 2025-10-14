@@ -6,6 +6,74 @@
 
 #include "attest/attest.h"
 
+/* ========================================================================
+ * Platform Detection
+ * ======================================================================== */
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+	#define ATT_PLATFORM_WINDOWS
+#else
+	#define ATT_PLATFORM_POSIX
+#endif
+
+/* ========================================================================
+ * Compiler Detection
+ * ======================================================================== */
+#if defined(_MSC_VER)
+	#define ATT_COMPILER_MSVC
+#elif defined(__GNUC__) || defined(__clang__)
+	#define ATT_COMPILER_GCC_LIKE
+#endif
+
+/* ========================================================================
+ * setjmp/longjmp Abstraction
+ * ======================================================================== */
+#include <setjmp.h>
+
+#ifdef ATT_PLATFORM_POSIX
+	#include <signal.h>
+	typedef sigjmp_buf att_jmp_buf;
+	#define att_setjmp(env) sigsetjmp((env), 1)
+	#define att_longjmp(env, val) siglongjmp((env), (val))
+#else
+	/* Windows: Use standard C setjmp/longjmp */
+	typedef jmp_buf att_jmp_buf;
+	#define att_setjmp(env) setjmp(env)
+	#define att_longjmp(env, val) longjmp((env), (val))
+#endif
+
+/* ========================================================================
+ * Alignment Attribute
+ * ======================================================================== */
+#ifdef ATT_COMPILER_MSVC
+	#define ATT_ALIGN(n) __declspec(align(n))
+#elif defined(ATT_COMPILER_GCC_LIKE)
+	#define ATT_ALIGN(n) __attribute__((aligned(n)))
+#else
+	#define ATT_ALIGN(n) _Alignas(n)
+#endif
+
+/* ========================================================================
+ * Constructor Attribute (for auto-registration)
+ * ======================================================================== */
+#ifdef ATT_COMPILER_MSVC
+	#define ATT_CONSTRUCTOR /* MSVC uses .CRT$XCU section, handled in attest.h */
+#elif defined(ATT_COMPILER_GCC_LIKE)
+	#define ATT_CONSTRUCTOR __attribute__((constructor))
+#else
+	#define ATT_CONSTRUCTOR /* Fallback: manual registration required */
+#endif
+
+/* ========================================================================
+ * Cleanup Attribute (for scoped info)
+ * ======================================================================== */
+#ifdef ATT_COMPILER_MSVC
+	#define ATT_CLEANUP(fn) /* MSVC: cleanup not supported, use manual management */
+#elif defined(ATT_COMPILER_GCC_LIKE)
+	#define ATT_CLEANUP(fn) __attribute__((cleanup(fn)))
+#else
+	#define ATT_CLEANUP(fn) /* Fallback: manual cleanup required */
+#endif
+
 typedef struct att_test_case {
 	const char* suite;
 	const char* name;

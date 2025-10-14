@@ -21,8 +21,18 @@ target_include_directories(attest
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# POSIXシグナル機能のために_POSIX_C_SOURCEを定義
-target_compile_definitions(attest PRIVATE _POSIX_C_SOURCE=200809L)
+# Platform-specific compile definitions
+if(WIN32)
+    # Windows: Suppress MSVC security warnings
+    target_compile_definitions(attest PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+    )
+else()
+    # POSIX: Define _POSIX_C_SOURCE for signal and timer features
+    target_compile_definitions(attest PRIVATE
+        _POSIX_C_SOURCE=200809L
+    )
+endif()
 
 # ARM64 GCC workaround for setjmp/longjmp stack alignment issues
 # See: https://gcc.gnu.org/bugzilla/ (GCC 14.2.0 ARM64 sigsetjmp/siglongjmp bug)
@@ -63,7 +73,11 @@ if(ATTEST_BUILD_TESTING)
 
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
+  
+  # Platform-specific compile definitions for tests
+  if(NOT WIN32)
+      target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
+  endif()
 
   add_test(NAME attest_selftest COMMAND attest_selftest)
 endif()

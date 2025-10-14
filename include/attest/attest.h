@@ -240,9 +240,16 @@ struct att_info_scope {
 #define ATT_CONCAT3(a, b, c) ATT_CONCAT(ATT_CONCAT(a, b), c)
 #define ATT_SUFFIX(name) _##name
 
-#define SCOPED_INFO(fmt, ...) \
-    att_info_scope_push(fmt, ##__VA_ARGS__); \
-    att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = {0}
+/* Scoped info - cleanup attribute support varies by compiler */
+#if defined(__GNUC__) || defined(__clang__)
+	#define SCOPED_INFO(fmt, ...) \
+		att_info_scope_push(fmt, ##__VA_ARGS__); \
+		att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = {0}
+#else
+	/* MSVC: cleanup not supported, info still pushed but manual cleanup needed */
+	#define SCOPED_INFO(fmt, ...) \
+		att_info_scope_push(fmt, ##__VA_ARGS__)
+#endif
 
 #if defined(__COUNTER__)
 #define ATT_UNIQUE_ID(prefix) ATT_CONCAT(prefix, __COUNTER__)
@@ -256,9 +263,9 @@ struct att_info_scope {
 	static void fn(void)
 #elif defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
-#define ATT_AUTOREG(fn)                                                   \
-	static void __cdecl fn(void);                                         \
-	__declspec(allocate(".CRT$XCU")) void(__cdecl * fn##_ptr)(void) = fn; \
+#define ATT_AUTOREG(fn)                                                      \
+	static void __cdecl fn(void);                                            \
+	__declspec(allocate(".CRT$XCU")) void(__cdecl * ATT_CONCAT(fn, _ptr))(void) = fn; \
 	static void __cdecl fn(void)
 #else
 #define ATT_AUTOREG(fn) static void fn(void)

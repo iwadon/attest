@@ -1,21 +1,24 @@
 #include <inttypes.h>
 #include <math.h>
 #include <stdarg.h>
-#include <signal.h>
-#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #include "attest/attest.h"
 #include "internal/attest_context.h"
 #include "internal/attest_internal.h"
 
+/* Platform-specific includes */
+#ifdef ATT_PLATFORM_POSIX
+	#include <signal.h>
+	#include <sys/time.h>
+#endif
+
 typedef struct att_context_state {
-	sigjmp_buf abort_env __attribute__((aligned(16)));
+	ATT_ALIGN(16) att_jmp_buf abort_env;
 	const att_test_case *test;
 	bool active;
 	bool color_enabled;
@@ -37,9 +40,9 @@ typedef struct att_context_state {
 	int timeout_ms;
     char *info_stack[8];
     int info_stack_size;
-} __attribute__((aligned(16))) att_context_state;
+} ATT_ALIGN(16) att_context_state;
 
-static att_context_state g_ctx_root __attribute__((aligned(16)));
+static ATT_ALIGN(16) att_context_state g_ctx_root;
 static att_context_state *g_ctx = &g_ctx_root;
 
 static char *att_dup_string(const char *text);
@@ -48,6 +51,7 @@ static const char *att_color_reset(void);
 static bool att_context_failure_append_format(const char *fmt, ...);
 static bool g_timeout_handler_installed;
 
+#ifdef ATT_PLATFORM_POSIX
 static void att_timeout_signal_handler(int signo)
 {
 	(void)signo;
@@ -55,8 +59,9 @@ static void att_timeout_signal_handler(int signo)
 		return;
 	}
 	g_ctx->timeout_triggered = true;
-	siglongjmp(g_ctx->abort_env, 1);
+	att_longjmp(g_ctx->abort_env, 1);
 }
+#endif
 
 void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format)
 {
@@ -70,7 +75,7 @@ void att_context_begin(const att_test_case *test, bool color_enabled, att_output
 
 int att_context_protect(void)
 {
-	return sigsetjmp(g_ctx->abort_env, 1);
+	return att_setjmp(g_ctx->abort_env);
 }
 
 void att_context_end(att_test_result *out_result)
@@ -147,7 +152,7 @@ void att_context_abort(void)
 	g_ctx->result.aborted = true;
 	att_context_fixture_on_abort();
 	att_context_timeout_stop();
-	siglongjmp(g_ctx->abort_env, 1);
+	att_longjmp(g_ctx->abort_env, 1);
 }
 
 bool att_context_color_enabled(void)
@@ -310,7 +315,7 @@ void att_context_skip(const char *reason)
 	}
 
 	att_context_fixture_on_abort();
-	siglongjmp(g_ctx->abort_env, 1);
+	att_longjmp(g_ctx->abort_env, 1);
 }
 
 void att_context_capture_failures(bool enabled)
@@ -335,6 +340,7 @@ void att_context_capture_failures(bool enabled)
 	g_ctx->capture_failures = false;
 }
 
+#ifdef ATT_PLATFORM_POSIX
 static void att_timeout_install_handler(void)
 {
 	if (g_timeout_handler_installed) {
@@ -374,6 +380,19 @@ void att_context_timeout_stop(void)
 		g_ctx->timeout_ms = 0;
 	}
 }
+#else
+/* Windows: Timeout feature not yet implemented */
+void att_context_timeout_start(int timeout_ms)
+{
+	(void)timeout_ms;
+	/* TODO: Implement Windows timeout using threads and WaitForSingleObject */
+}
+
+void att_context_timeout_stop(void)
+{
+	/* TODO: Implement Windows timeout cleanup */
+}
+#endif
 static const char *att_color_fail(void)
 {
 	return att_context_color_enabled() ? "\033[31m" : "";
@@ -1243,13 +1262,19 @@ struct att_subtest_scope {
 
 static att_subtest_scope *att_subtest_scope_allocate(void)
 {
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__APPLE__)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__APPLE__) && !defined(_MSC_VER)
 	/* C11 aligned_alloc for better alignment on Linux ARM64 */
 	size_t size = sizeof(att_subtest_scope);
 	size_t aligned_size = (size + 15) & ~15;
 	att_subtest_scope *scope = aligned_alloc(16, aligned_size);
 	if (scope) {
 		memset(scope, 0, aligned_size);
+	}
+#elif defined(_MSC_VER)
+	/* MSVC: Use _aligned_malloc */
+	att_subtest_scope *scope = _aligned_malloc(sizeof(*scope), 16);
+	if (scope) {
+		memset(scope, 0, sizeof(*scope));
 	}
 #else
 	att_subtest_scope *scope = malloc(sizeof(*scope));
@@ -1351,7 +1376,11 @@ att_status att_subtest_scope_leave(att_subtest_scope *scope, att_result *out)
 		if (scope->fullname) {
 			free(scope->fullname);
 		}
+#ifdef _MSC_VER
+		_aligned_free(scope);
+#else
 		free(scope);
+#endif
 	} else {
 		if (out) {
 			memset(out, 0, sizeof(*out));
