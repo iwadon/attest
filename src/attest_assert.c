@@ -1372,7 +1372,8 @@ att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att
 	}
 
 	att_subtest_scope *scope = att_subtest_scope_enter(name);
-	if (att_subtest_scope_protect(scope) == 0) {
+	// Inline att_subtest_scope_protect to avoid stack frame issues
+	if (scope && scope->active && att_context_protect() == 0) {
 		fn(user);
 	}
 	return att_subtest_scope_leave(scope, out);
