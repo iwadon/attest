@@ -93,6 +93,7 @@ CMakeUserPresets.json
 *.vsix
 
 
-
-build/
+# This project specifically ignores:
+.claude/session-state.md
 .claude/settings.local.json
+build/
