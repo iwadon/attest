@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -71,6 +72,10 @@ void att_handle_memory(const char *assertion, const char *file, int line, bool f
 	const void *lhs, const void *rhs, size_t size, const char *lhs_expr, const char *rhs_expr);
 void att_handle_near(const char *assertion, const char *file, int line, bool fatal,
 	double lhs, double rhs, double epsilon, const char *lhs_expr, const char *rhs_expr, const char *eps_expr);
+void att_handle_near_rel(const char *assertion, const char *file, int line, bool fatal,
+	double lhs, double rhs, double rel_eps, const char *lhs_expr, const char *rhs_expr, const char *eps_expr);
+void att_handle_ulp_eq(double a, double b, int64_t max_ulp, const char *file, int line,
+	const char *expr_a, const char *expr_b, const char *expr_ulp, bool fatal);
 bool att_handle_subtest_expect(const char *assertion, const char *file, int line, const char *name_expr,
 	const char *name_value, int min, int max, att_status status, const att_result *result);
 void att_replay_captured(const att_captured *captured);
@@ -86,7 +91,7 @@ void att_info_scope_push(const char *fmt, ...);
 void att_info_scope_pop_impl(void *unused);
 
 struct att_info_scope {
-    int dummy;
+	int dummy;
 };
 
 #define ATT_GENERIC_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
@@ -212,27 +217,45 @@ struct att_info_scope {
 		att_handle_near("EXPECT_NEAR(" #lhs ", " #rhs ", " #eps ")", __FILE__, __LINE__, false, (double)(lhs), (double)(rhs), (double)(eps), #lhs, #rhs, #eps); \
 	} while (0)
 
-#define ATT_EXPECT_SUBTEST_FAILS(name, block, min, max)                                                \
-	do {                                                                                               \
-		att_captured att__captured = { 0 };                                                            \
-		int att__capture_active = (att_capture_begin() == 0);                                          \
-		att_subtest_scope *att__scope = att_subtest_scope_enter((name));                               \
-		att_result att__sub_result;                                                                    \
-		if (att_subtest_scope_protect(att__scope) == 0) {                                              \
-			block                                                                                      \
-		}                                                                                              \
-		att_status att__sub_status = att_subtest_scope_leave(att__scope, &att__sub_result);            \
-		if (att__capture_active) {                                                                     \
-			att_capture_end(&att__captured);                                                           \
-		}                                                                                              \
+#define ASSERT_NEAR_REL(lhs, rhs, rel_eps)                                                                                                                                         \
+	do {                                                                                                                                                                           \
+		att_handle_near_rel("ASSERT_NEAR_REL(" #lhs ", " #rhs ", " #rel_eps ")", __FILE__, __LINE__, true, (double)(lhs), (double)(rhs), (double)(rel_eps), #lhs, #rhs, #rel_eps); \
+	} while (0)
+#define EXPECT_NEAR_REL(lhs, rhs, rel_eps)                                                                                                                                          \
+	do {                                                                                                                                                                            \
+		att_handle_near_rel("EXPECT_NEAR_REL(" #lhs ", " #rhs ", " #rel_eps ")", __FILE__, __LINE__, false, (double)(lhs), (double)(rhs), (double)(rel_eps), #lhs, #rhs, #rel_eps); \
+	} while (0)
+
+#define ASSERT_ULP_EQ(a, b, max_ulp)                                                                                 \
+	do {                                                                                                             \
+		att_handle_ulp_eq((double)(a), (double)(b), (int64_t)(max_ulp), __FILE__, __LINE__, #a, #b, #max_ulp, true); \
+	} while (0)
+#define EXPECT_ULP_EQ(a, b, max_ulp)                                                                                  \
+	do {                                                                                                              \
+		att_handle_ulp_eq((double)(a), (double)(b), (int64_t)(max_ulp), __FILE__, __LINE__, #a, #b, #max_ulp, false); \
+	} while (0)
+
+#define ATT_EXPECT_SUBTEST_FAILS(name, block, min, max)                                                                \
+	do {                                                                                                               \
+		att_captured att__captured = { 0 };                                                                            \
+		int att__capture_active = (att_capture_begin() == 0);                                                          \
+		att_subtest_scope *att__scope = att_subtest_scope_enter((name));                                               \
+		att_result att__sub_result;                                                                                    \
+		if (att_subtest_scope_protect(att__scope) == 0) {                                                              \
+			block                                                                                                      \
+		}                                                                                                              \
+		att_status att__sub_status = att_subtest_scope_leave(att__scope, &att__sub_result);                            \
+		if (att__capture_active) {                                                                                     \
+			att_capture_end(&att__captured);                                                                           \
+		}                                                                                                              \
 		bool att__sub_expect_ok = att_handle_subtest_expect("ATT_EXPECT_SUBTEST_FAILS(" #name ", " #min ", " #max ")", \
-			__FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result);                          \
-		if (!att__sub_expect_ok && att__capture_active) {                                                                     \
-			att_replay_captured(&att__captured);                                                                              \
-		}                                                                                              \
-		if (att__capture_active && att__captured.data) {                                               \
-			free(att__captured.data);                                                                  \
-		}                                                                                              \
+			__FILE__, __LINE__, #name, (name), (min), (max), att__sub_status, &att__sub_result);                       \
+		if (!att__sub_expect_ok && att__capture_active) {                                                              \
+			att_replay_captured(&att__captured);                                                                       \
+		}                                                                                                              \
+		if (att__capture_active && att__captured.data) {                                                               \
+			free(att__captured.data);                                                                                  \
+		}                                                                                                              \
 	} while (0)
 
 #define ATT_CONCAT_INNER(a, b) a##b
@@ -242,13 +265,13 @@ struct att_info_scope {
 
 /* Scoped info - cleanup attribute support varies by compiler */
 #if defined(__GNUC__) || defined(__clang__)
-	#define SCOPED_INFO(fmt, ...) \
-		att_info_scope_push(fmt, ##__VA_ARGS__); \
-		att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = {0}
+#define SCOPED_INFO(fmt, ...)                \
+	att_info_scope_push(fmt, ##__VA_ARGS__); \
+	att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = { 0 }
 #else
-	/* MSVC: cleanup not supported, info still pushed but manual cleanup needed */
-	#define SCOPED_INFO(fmt, ...) \
-		att_info_scope_push(fmt, ##__VA_ARGS__)
+/* MSVC: cleanup not supported, info still pushed but manual cleanup needed */
+#define SCOPED_INFO(fmt, ...) \
+	att_info_scope_push(fmt, ##__VA_ARGS__)
 #endif
 
 #if defined(__COUNTER__)
@@ -263,8 +286,8 @@ struct att_info_scope {
 	static void fn(void)
 #elif defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
-#define ATT_AUTOREG(fn)                                                      \
-	static void __cdecl fn(void);                                            \
+#define ATT_AUTOREG(fn)                                                               \
+	static void __cdecl fn(void);                                                     \
 	__declspec(allocate(".CRT$XCU")) void(__cdecl * ATT_CONCAT(fn, _ptr))(void) = fn; \
 	static void __cdecl fn(void)
 #else
@@ -290,40 +313,40 @@ struct att_info_scope {
 
 #define ATT_TEST_REF(Suite, Name) ATT_REGISTER_FN_NAME(Suite, Name)
 
-#define ATT_FIXTURE_SETUP(Fixture)                                                                                         \
-	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture);                                                       \
-	ATT_AUTOREG(ATT_CONCAT(att_fixture_setup_autoreg_, Fixture))                                                            \
-	{                                                                                                                       \
-		att_fixture_register_setup(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_SETUP_FN(Fixture));            \
-	}                                                                                                                       \
+#define ATT_FIXTURE_SETUP(Fixture)                                                                              \
+	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture);                                           \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_setup_autoreg_, Fixture))                                                \
+	{                                                                                                           \
+		att_fixture_register_setup(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_SETUP_FN(Fixture)); \
+	}                                                                                                           \
 	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture)
 
-#define ATT_FIXTURE_TEARDOWN(Fixture)                                                                                      \
-	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture);                                                    \
-	ATT_AUTOREG(ATT_CONCAT(att_fixture_teardown_autoreg_, Fixture))                                                         \
-	{                                                                                                                       \
-		att_fixture_register_teardown(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_TEARDOWN_FN(Fixture));      \
-	}                                                                                                                       \
+#define ATT_FIXTURE_TEARDOWN(Fixture)                                                                                 \
+	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture);                                              \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_teardown_autoreg_, Fixture))                                                   \
+	{                                                                                                                 \
+		att_fixture_register_teardown(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_TEARDOWN_FN(Fixture)); \
+	}                                                                                                                 \
 	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture)
 
 #define ATT_FIXTURE(type) ((type *)att_fixture)
 
-#define ATT_TEST_F_IMPL(suite, name, fixture_type, fn_symbol, body_symbol, reg_symbol)                    \
-	static void body_symbol(fixture_type * att_fixture);                                                  \
-	static void fn_symbol(void);                                                                          \
-	ATT_AUTOREG(reg_symbol)                                                                               \
-	{                                                                                                     \
-		att_register_test(suite, name, fn_symbol, __FILE__, __LINE__);                                    \
-	}                                                                                                     \
-	static void fn_symbol(void)                                                                           \
-	{                                                                                                     \
-		att_fixture_run(suite, sizeof(fixture_type), (att_fixture_body_fn)body_symbol);                   \
-	}                                                                                                     \
-	static void body_symbol(fixture_type * att_fixture)
+#define ATT_TEST_F_IMPL(suite, name, fixture_type, fn_symbol, body_symbol, reg_symbol)  \
+	static void body_symbol(fixture_type *att_fixture);                                 \
+	static void fn_symbol(void);                                                        \
+	ATT_AUTOREG(reg_symbol)                                                             \
+	{                                                                                   \
+		att_register_test(suite, name, fn_symbol, __FILE__, __LINE__);                  \
+	}                                                                                   \
+	static void fn_symbol(void)                                                         \
+	{                                                                                   \
+		att_fixture_run(suite, sizeof(fixture_type), (att_fixture_body_fn)body_symbol); \
+	}                                                                                   \
+	static void body_symbol(fixture_type *att_fixture)
 
-#define ATT_SKIP(reason)          \
-	do {                          \
-		att_skip(reason);         \
+#define ATT_SKIP(reason)  \
+	do {                  \
+		att_skip(reason); \
 	} while (0)
 
 #define ATT_SKIP_IF(cond, reason) \
@@ -340,8 +363,8 @@ struct att_info_scope {
 	} while (0)
 
 #define TEST(Suite, Name) ATT_TEST(Suite, Name)
-#define TEST_F(Fixture, Name)                                                                 \
-	ATT_TEST_F_IMPL(#Fixture, #Name, Fixture, ATT_TEST_FN_NAME(Fixture, Name),                \
+#define TEST_F(Fixture, Name)                                                  \
+	ATT_TEST_F_IMPL(#Fixture, #Name, Fixture, ATT_TEST_FN_NAME(Fixture, Name), \
 		ATT_FIXTURE_BODY_FN_NAME(Fixture, Name), ATT_REGISTER_FN_NAME(Fixture, Name))
 
 #ifdef __cplusplus

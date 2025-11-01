@@ -13,18 +13,19 @@
 
 /* Platform-specific includes */
 #ifdef ATT_PLATFORM_POSIX
-	#include <signal.h>
-	#include <sys/time.h>
+#include <signal.h>
+#include <sys/time.h>
 #endif
 
 #ifdef ATT_PLATFORM_WINDOWS
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-	#include <process.h>
+#define WIN32_LEAN_AND_MEAN
+#include <process.h>
+#include <windows.h>
 #endif
 
 typedef struct att_context_state {
-	ATT_ALIGN(16) att_jmp_buf abort_env;
+	ATT_ALIGN(16)
+	att_jmp_buf abort_env;
 	const att_test_case *test;
 	bool active;
 	bool color_enabled;
@@ -44,8 +45,8 @@ typedef struct att_context_state {
 	size_t failure_capacity;
 	bool timeout_triggered;
 	int timeout_ms;
-    char *info_stack[8];
-    int info_stack_size;
+	char *info_stack[8];
+	int info_stack_size;
 #ifdef ATT_PLATFORM_WINDOWS
 	HANDLE timeout_thread;
 	HANDLE timeout_event;
@@ -219,40 +220,40 @@ att_output_format att_context_get_format(void)
 
 void att_info_scope_push(const char *fmt, ...)
 {
-    if (!g_ctx || !g_ctx->active || g_ctx->info_stack_size >= 8) {
-        return;
-    }
+	if (!g_ctx || !g_ctx->active || g_ctx->info_stack_size >= 8) {
+		return;
+	}
 
-    va_list args;
-    va_start(args, fmt);
-    int needed = vsnprintf(NULL, 0, fmt, args);
-    va_end(args);
+	va_list args;
+	va_start(args, fmt);
+	int needed = vsnprintf(NULL, 0, fmt, args);
+	va_end(args);
 
-    if (needed < 0) {
-        return;
-    }
+	if (needed < 0) {
+		return;
+	}
 
-    size_t size = (size_t)needed + 1;
-    char *buffer = malloc(size);
-    if (!buffer) {
-        return;
-    }
+	size_t size = (size_t)needed + 1;
+	char *buffer = malloc(size);
+	if (!buffer) {
+		return;
+	}
 
-    va_start(args, fmt);
-    vsnprintf(buffer, size, fmt, args);
-    va_end(args);
+	va_start(args, fmt);
+	vsnprintf(buffer, size, fmt, args);
+	va_end(args);
 
-    g_ctx->info_stack[g_ctx->info_stack_size++] = buffer;
+	g_ctx->info_stack[g_ctx->info_stack_size++] = buffer;
 }
 
 void att_info_scope_pop_impl(void *unused)
 {
-    (void)unused;
-    if (g_ctx && g_ctx->active && g_ctx->info_stack_size > 0) {
-        --g_ctx->info_stack_size;
-        free(g_ctx->info_stack[g_ctx->info_stack_size]);
-        g_ctx->info_stack[g_ctx->info_stack_size] = NULL;
-    }
+	(void)unused;
+	if (g_ctx && g_ctx->active && g_ctx->info_stack_size > 0) {
+		--g_ctx->info_stack_size;
+		free(g_ctx->info_stack[g_ctx->info_stack_size]);
+		g_ctx->info_stack[g_ctx->info_stack_size] = NULL;
+	}
 }
 
 void att_context_fixture_enter(const char *fixture_name, size_t fixture_size, void *instance, att_fixture_hook teardown)
@@ -464,10 +465,9 @@ void att_context_timeout_start(int timeout_ms)
 		NULL,
 		0,
 		att_timeout_thread_proc,
-		(void*)(intptr_t)timeout_ms,
+		(void *)(intptr_t)timeout_ms,
 		0,
-		NULL
-	);
+		NULL);
 
 	if (!g_ctx->timeout_thread) {
 		fprintf(stderr, "Warning: Failed to create timeout thread. Timeout feature disabled.\n");
@@ -1353,6 +1353,165 @@ void att_handle_near(const char *assertion, const char *file, int line, bool fat
 	}
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "epsilon", eps_fmt.text);
+	if (fatal) {
+		att_context_abort();
+	}
+}
+
+void att_handle_near_rel(const char *assertion, const char *file, int line, bool fatal, double lhs, double rhs, double rel_eps, const char *lhs_expr, const char *rhs_expr, const char *eps_expr)
+{
+	bool valid = !isnan(lhs) && !isnan(rhs) && !isnan(rel_eps) && rel_eps >= 0.0;
+	bool passed = false;
+	double diff = fabs(lhs - rhs);
+	double abs_lhs = fabs(lhs);
+	double abs_rhs = fabs(rhs);
+	double max_abs = abs_lhs > abs_rhs ? abs_lhs : abs_rhs;
+	double threshold = rel_eps * max_abs;
+
+	if (!valid) {
+		passed = false;
+	} else if (isinf(lhs) || isinf(rhs)) {
+		passed = lhs == rhs;
+	} else if (max_abs < 1e-15) {
+		/* Both values near zero: use absolute comparison with rel_eps as absolute threshold */
+		passed = diff <= rel_eps;
+	} else {
+		passed = diff <= threshold;
+	}
+
+	att_context_record_assert(fatal, passed);
+	if (passed) {
+		return;
+	}
+
+	att_formatted lhs_fmt = att_format_double(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
+	att_formatted rhs_fmt = att_format_double(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
+	att_formatted eps_fmt = att_format_double(rel_eps);
+	if (eps_fmt.text == NULL || eps_fmt.buffer[0] != '\0') {
+		eps_fmt.text = eps_fmt.buffer;
+	}
+	char expr[256];
+	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+
+	char expected_buf[128];
+	snprintf(expected_buf, sizeof(expected_buf), "|%s - %s| <= %s * max(|%s|, |%s|)", lhs_expr, rhs_expr, eps_expr, lhs_expr, rhs_expr);
+
+	char actual_buf[128];
+	if (!valid) {
+		if (rel_eps < 0.0) {
+			snprintf(actual_buf, sizeof(actual_buf), "rel_eps is negative (%s)", eps_fmt.text);
+		} else {
+			snprintf(actual_buf, sizeof(actual_buf), "comparison undefined (NaN input)");
+		}
+	} else if (isinf(lhs) || isinf(rhs)) {
+		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
+	} else {
+		att_formatted diff_fmt = att_format_double(diff);
+		if (diff_fmt.text == NULL || diff_fmt.buffer[0] != '\0') {
+			diff_fmt.text = diff_fmt.buffer;
+		}
+		att_formatted threshold_fmt = att_format_double(threshold);
+		if (threshold_fmt.text == NULL || threshold_fmt.buffer[0] != '\0') {
+			threshold_fmt.text = threshold_fmt.buffer;
+		}
+		snprintf(actual_buf, sizeof(actual_buf), "|lhs - rhs| = %s, threshold = %s", diff_fmt.text, threshold_fmt.text);
+	}
+
+	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "rel_eps", eps_fmt.text);
+	if (fatal) {
+		att_context_abort();
+	}
+}
+
+void att_handle_ulp_eq(double a, double b, int64_t max_ulp, const char *file, int line, const char *expr_a, const char *expr_b, const char *expr_ulp, bool fatal)
+{
+	bool valid = !isnan(a) && !isnan(b) && max_ulp >= 0;
+	bool passed = false;
+	int64_t ulp_distance = 0;
+
+	if (!valid) {
+		passed = false;
+	} else if (isinf(a) || isinf(b)) {
+		/* Both infinity: must match sign exactly */
+		passed = (a == b);
+	} else {
+		/* Convert doubles to 64-bit integers via union (C strict aliasing safe) */
+		union {
+			double d;
+			uint64_t u;
+		} ua, ub;
+		ua.d = a;
+		ub.d = b;
+
+		/* IEEE 754: sign bit is MSB. For negative numbers, we need two's complement
+		   interpretation from 0x8000000000000000 to make ULP counting work correctly */
+		uint64_t bits_a = ua.u;
+		uint64_t bits_b = ub.u;
+
+		/* If sign bit is set (negative), convert to two's complement from 0x8000000000000000 */
+		if (bits_a & 0x8000000000000000ULL) {
+			bits_a = 0x8000000000000000ULL - bits_a;
+		}
+		if (bits_b & 0x8000000000000000ULL) {
+			bits_b = 0x8000000000000000ULL - bits_b;
+		}
+
+		/* Calculate ULP distance */
+		if (bits_a > bits_b) {
+			ulp_distance = (int64_t)(bits_a - bits_b);
+		} else {
+			ulp_distance = (int64_t)(bits_b - bits_a);
+		}
+
+		passed = (ulp_distance <= max_ulp);
+	}
+
+	att_context_record_assert(fatal, passed);
+	if (passed) {
+		return;
+	}
+
+	att_formatted a_fmt = att_format_double(a);
+	if (a_fmt.text == NULL || a_fmt.buffer[0] != '\0') {
+		a_fmt.text = a_fmt.buffer;
+	}
+	att_formatted b_fmt = att_format_double(b);
+	if (b_fmt.text == NULL || b_fmt.buffer[0] != '\0') {
+		b_fmt.text = b_fmt.buffer;
+	}
+	char expr[256];
+	att_build_expr(expr, sizeof(expr), expr_a, &a_fmt, expr_b, &b_fmt);
+
+	char expected_buf[128];
+	snprintf(expected_buf, sizeof(expected_buf), "ULP distance <= %s", expr_ulp);
+
+	char actual_buf[128];
+	if (!valid) {
+		if (max_ulp < 0) {
+			snprintf(actual_buf, sizeof(actual_buf), "max_ulp is negative (%" PRId64 ")", max_ulp);
+		} else {
+			snprintf(actual_buf, sizeof(actual_buf), "comparison undefined (NaN input)");
+		}
+	} else if (isinf(a) || isinf(b)) {
+		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
+	} else {
+		snprintf(actual_buf, sizeof(actual_buf), "ULP distance = %" PRId64, ulp_distance);
+	}
+
+	char ulp_str[32];
+	snprintf(ulp_str, sizeof(ulp_str), "%" PRId64, max_ulp);
+
+	const char *assertion_name = fatal ? "ASSERT_ULP_EQ" : "EXPECT_ULP_EQ";
+	char assertion_full[128];
+	snprintf(assertion_full, sizeof(assertion_full), "%s(%s, %s, %s)", assertion_name, expr_a, expr_b, expr_ulp);
+
+	att_report_failure(fatal, assertion_full, file, line, expected_buf, actual_buf, expr, "max_ulp", ulp_str);
 	if (fatal) {
 		att_context_abort();
 	}
