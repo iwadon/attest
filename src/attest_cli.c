@@ -157,11 +157,11 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 {
 	if (!out_opts) {
 		if (err_msg) {
-			char *msg = att_strdup("error: internal");
-			if (!msg) {
-				msg = att_strdup("error: allocation failure");
+			/* Return an allocated error string so callers can free it safely. */
+			*err_msg = att_strdup("error: internal");
+			if (!*err_msg) {
+				*err_msg = att_strdup("error: allocation failure");
 			}
-			*err_msg = msg;
 		}
 		return -1;
 	}
