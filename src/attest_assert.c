@@ -573,6 +573,14 @@ static att_formatted att_format_double(double value)
 	return fmt;
 }
 
+static att_formatted att_format_long_double(long double value)
+{
+	att_formatted fmt;
+	snprintf(fmt.buffer, sizeof(fmt.buffer), "%.18Lg", value);
+	fmt.text = fmt.buffer;
+	return fmt;
+}
+
 static att_formatted att_format_pointer(const void *value)
 {
 	att_formatted fmt;
@@ -896,6 +904,50 @@ void att_handle_compare_double(int op, const char *assertion, const char *file, 
 	}
 }
 
+static bool att_compare_long_double_values(int op, long double lhs, long double rhs)
+{
+	switch (op) {
+	case ATT_COMP_EQ:
+		return lhs == rhs;
+	case ATT_COMP_NE:
+		return lhs != rhs;
+	case ATT_COMP_LT:
+		return lhs < rhs;
+	case ATT_COMP_LE:
+		return lhs <= rhs;
+	case ATT_COMP_GT:
+		return lhs > rhs;
+	case ATT_COMP_GE:
+		return lhs >= rhs;
+	default:
+		return false;
+	}
+}
+
+void att_handle_compare_long_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long double lhs, long double rhs)
+{
+	bool passed = att_compare_long_double_values(op, lhs, rhs);
+	att_context_record_assert(fatal, passed);
+	if (passed) {
+		return;
+	}
+
+	att_formatted lhs_fmt = att_format_long_double(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
+	att_formatted rhs_fmt = att_format_long_double(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
+	char expr[256];
+	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
+	if (fatal) {
+		att_context_abort();
+	}
+}
+
 void att_handle_compare_pointer(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const void *lhs, const void *rhs)
 {
 	uintptr_t lhs_addr = (uintptr_t)lhs;
@@ -960,6 +1012,30 @@ void att_handle_truth(const char *assertion, const char *file, int line, bool fa
 	char expr_buffer[256];
 	snprintf(expr_buffer, sizeof(expr_buffer), "%s=%s", expr, actual_fmt.text);
 	att_report_failure(fatal, assertion, file, line, expected_fmt.text, actual_fmt.text, expr_buffer, NULL, NULL);
+	if (fatal) {
+		att_context_abort();
+	}
+}
+
+void att_handle_custom_assert(const char *file, int line, bool fatal, bool value, const char *expr, const char *fmt, ...)
+{
+	bool passed = value;
+	att_context_record_assert(fatal, passed);
+	if (passed) {
+		return;
+	}
+
+	char message[512];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(message, sizeof(message), fmt, args);
+	va_end(args);
+
+	const char *assertion_name = fatal ? "ATT_ASSERT" : "ATT_EXPECT";
+	char assertion_text[128];
+	snprintf(assertion_text, sizeof(assertion_text), "%s(%s, ...)", assertion_name, expr);
+
+	att_report_failure(fatal, assertion_text, file, line, "expression evaluates to true", message, expr, NULL, NULL);
 	if (fatal) {
 		att_context_abort();
 	}

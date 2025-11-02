@@ -71,9 +71,12 @@ void att_handle_compare_unsigned(int op, const char *assertion, const char *file
 	const char *lhs_expr, const char *rhs_expr, unsigned long long lhs, unsigned long long rhs);
 void att_handle_compare_double(int op, const char *assertion, const char *file, int line, bool fatal,
 	const char *lhs_expr, const char *rhs_expr, double lhs, double rhs);
+void att_handle_compare_long_double(int op, const char *assertion, const char *file, int line, bool fatal,
+	const char *lhs_expr, const char *rhs_expr, long double lhs, long double rhs);
 void att_handle_compare_pointer(int op, const char *assertion, const char *file, int line, bool fatal,
 	const char *lhs_expr, const char *rhs_expr, const void *lhs, const void *rhs);
 void att_handle_truth(const char *assertion, const char *file, int line, bool fatal, bool value, bool expect_true, const char *expr);
+void att_handle_custom_assert(const char *file, int line, bool fatal, bool value, const char *expr, const char *fmt, ...);
 void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal,
 	const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs);
 void att_handle_memory(const char *assertion, const char *file, int line, bool fatal,
@@ -117,7 +120,7 @@ struct att_info_scope {
 		unsigned long long: att_handle_compare_unsigned,                                         \
 		float: att_handle_compare_double,                                                        \
 		double: att_handle_compare_double,                                                       \
-		long double: att_handle_compare_double,                                                  \
+		long double: att_handle_compare_long_double,                                             \
 		const void *: att_handle_compare_pointer,                                                \
 		void *: att_handle_compare_pointer,                                                      \
 		const char *: att_handle_compare_pointer,                                                \
@@ -188,6 +191,15 @@ struct att_info_scope {
 #define EXPECT_FALSE(expr)                                                                              \
 	do {                                                                                                \
 		att_handle_truth("EXPECT_FALSE(" #expr ")", __FILE__, __LINE__, false, !!(expr), false, #expr); \
+	} while (0)
+
+#define ATT_ASSERT(expr, ...)                                                             \
+	do {                                                                                  \
+		att_handle_custom_assert(__FILE__, __LINE__, true, !!(expr), #expr, __VA_ARGS__); \
+	} while (0)
+#define ATT_EXPECT(expr, ...)                                                              \
+	do {                                                                                   \
+		att_handle_custom_assert(__FILE__, __LINE__, false, !!(expr), #expr, __VA_ARGS__); \
 	} while (0)
 
 #define ASSERT_STREQ(lhs, rhs)                                                                                                  \
