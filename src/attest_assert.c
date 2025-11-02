@@ -199,6 +199,10 @@ void att_context_abort(void)
 	int saved_timeout_ms = ctx->timeout_ms;
 	att_context_timeout_stop();
 	ctx->timeout_ms = saved_timeout_ms;
+	
+	/* Jump to the current context's setjmp point.
+	   Do not walk up to parent contexts, as that causes stack frame misalignment.
+	   The current context's abort_env was initialized by setjmp in the correct stack frame. */
 	att_longjmp(ctx->abort_env, 1);
 }
 
@@ -367,6 +371,10 @@ void att_context_skip(const char *reason)
 	}
 
 	att_context_fixture_on_abort();
+	
+	/* Jump to the current context's setjmp point.
+	   Do not walk up to parent contexts, as that causes stack frame misalignment.
+	   The current context's abort_env was initialized by setjmp in the correct stack frame. */
 	att_longjmp(ctx->abort_env, 1);
 }
 
@@ -594,8 +602,8 @@ static att_formatted att_format_long_double(long double value)
 {
 	att_formatted fmt;
 	snprintf(fmt.buffer, sizeof(fmt.buffer), "%.18Lg", value);
-	fmt.text = fmt.buffer;
-	return fmt;
+ fmt.text = fmt.buffer;
+ return fmt;
 }
 
 static att_formatted att_format_pointer(const void *value)
@@ -951,7 +959,7 @@ void att_handle_compare_long_double(int op, const char *assertion, const char *f
 
 	att_formatted lhs_fmt = att_format_long_double(lhs);
 	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-		lhs_fmt.text = lhs_fmt.buffer;
+	 lhs_fmt.text = lhs_fmt.buffer;
 	}
 	att_formatted rhs_fmt = att_format_long_double(rhs);
 	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
@@ -1717,8 +1725,8 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 	const char *sub_name = name ? name : "subtest";
 
 	size_t parent_len = strlen(parent_name);
-	size_t sub_len = strlen(sub_name);
-	size_t total_len = parent_len + 3 + sub_len;
+ size_t sub_len = strlen(sub_name);
+ size_t total_len = parent_len + 3 + sub_len;
 
 	char *full_name = malloc(total_len + 1);
 	if (full_name) {
@@ -1757,10 +1765,14 @@ int att__subtest_scope_active(const att_subtest_scope *scope)
 	return (scope && scope->active) ? 1 : 0;
 }
 
-/* Helper for att_subtest_scope_protect macro - calls att_context_protect */
-int att__context_protect_internal(void)
+/* Helper for att_subtest_scope_protect macro - returns pointer to g_ctx->abort_env
+ * This allows the macro to call setjmp directly in the caller's stack frame */
+att_jmp_buf *att__get_abort_env_ptr(void)
 {
-	return att_context_protect();
+	if (!g_ctx) {
+		att_get_context();
+	}
+	return &g_ctx->abort_env;
 }
 
 static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_result *out)
@@ -1831,8 +1843,8 @@ att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att
 	}
 
 	att_subtest_scope *scope = att_subtest_scope_enter(name);
-	// Inline att_subtest_scope_protect to avoid stack frame issues
-	if (scope && scope->active && att_context_protect() == 0) {
+	// Inline setjmp to avoid stack frame issues - setjmp MUST be in this stack frame
+	if (scope && scope->active && att_setjmp(g_ctx->abort_env) == 0) {
 		fn(user);
 	}
 	return att_subtest_scope_leave(scope, out);

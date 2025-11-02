@@ -708,7 +708,6 @@ TEST(CustomAssert, FailingExpect)
 
 TEST(CustomAssert, FailingAssert)
 {
-	ATT_SKIP("Known issue: manual subtest scope API violates setjmp/longjmp constraints");
 	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
 
 	att_captured captured;

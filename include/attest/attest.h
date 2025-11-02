@@ -1,6 +1,7 @@
 #ifndef ATTEST_ATTEST_H
 #define ATTEST_ATTEST_H
 
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -8,6 +9,23 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+/* Platform detection for setjmp/longjmp */
+#if defined(__unix__) || defined(__APPLE__)
+	#define ATT_PLATFORM_POSIX
+#endif
+
+#ifdef ATT_PLATFORM_POSIX
+	#include <signal.h>
+	typedef sigjmp_buf att_jmp_buf;
+	#define att_setjmp(env) sigsetjmp((env), 1)
+	#define att_longjmp(env, val) siglongjmp((env), (val))
+#else
+	/* Windows: Use standard C setjmp/longjmp */
+	typedef jmp_buf att_jmp_buf;
+	#define att_setjmp(env) setjmp(env)
+	#define att_longjmp(env, val) longjmp((env), (val))
 #endif
 
 typedef enum {
@@ -49,12 +67,13 @@ att_subtest_scope *att_subtest_scope_enter(const char *name);
 
 /* Internal helper - do not call directly */
 int att__subtest_scope_active(const att_subtest_scope *scope);
-int att__context_protect_internal(void);
+att_jmp_buf *att__get_abort_env_ptr(void);
 
 /* Must be a macro to avoid stack frame issues with setjmp/longjmp.
- * setjmp must be called in the same stack frame that will handle longjmp. */
+ * setjmp must be called in the same stack frame that will handle longjmp.
+ * This macro expands setjmp inline in the caller's stack frame. */
 #define att_subtest_scope_protect(scope) \
-	(att__subtest_scope_active(scope) ? att__context_protect_internal() : 1)
+	(att__subtest_scope_active(scope) ? att_setjmp(*att__get_abort_env_ptr()) : 1)
 
 att_status att_subtest_scope_leave(att_subtest_scope *scope, att_result *out);
 
