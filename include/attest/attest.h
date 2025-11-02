@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 /* Platform detection for setjmp/longjmp */
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
 	#define ATT_PLATFORM_POSIX
 #endif
 
