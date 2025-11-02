@@ -83,6 +83,11 @@ if(ATTEST_BUILD_TESTING)
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+  # Link math library on Unix-like systems (for nextafter in ULP tests)
+  if(UNIX)
+      target_link_libraries(attest_selftest PRIVATE m)
+  endif()
+
   # Platform-specific compile definitions for tests
   if(NOT WIN32)
       target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
@@ -96,6 +101,11 @@ if(ATTEST_BUILD_TESTING)
   )
   target_link_libraries(attest_timeout_test PRIVATE attest)
 
+  # Platform-specific compile definitions for timeout test
+  if(NOT WIN32)
+      target_compile_definitions(attest_timeout_test PRIVATE _POSIX_C_SOURCE=200809L)
+  endif()
+
   # Thread detection test executable (for verifying Phase 1 implementation)
   add_executable(attest_thread_detection_test
       tests/test_thread_detection.c
@@ -104,4 +114,9 @@ if(ATTEST_BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
+
+  # Platform-specific compile definitions for thread detection test
+  if(NOT WIN32)
+      target_compile_definitions(attest_thread_detection_test PRIVATE _POSIX_C_SOURCE=200809L)
+  endif()
 endif()

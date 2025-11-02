@@ -1,9 +1,7 @@
 #ifndef ATTEST_INTERNAL_H
 #define ATTEST_INTERNAL_H
 
-#include <stdbool.h>
-#include <stddef.h>
-
+/* Include attest.h first to ensure _POSIX_C_SOURCE is defined before any system headers */
 #include "attest/attest.h"
 
 /* Forward declarations to avoid circular dependencies */
@@ -12,10 +10,9 @@ typedef struct att_test_result att_test_result;
 /* ========================================================================
  * Platform Detection
  * ======================================================================== */
+/* Note: ATT_PLATFORM_POSIX is defined in attest.h */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 	#define ATT_PLATFORM_WINDOWS
-#else
-	#define ATT_PLATFORM_POSIX
 #endif
 
 /* ========================================================================
@@ -55,19 +52,7 @@ typedef struct att_test_result att_test_result;
 /* ========================================================================
  * setjmp/longjmp Abstraction
  * ======================================================================== */
-#include <setjmp.h>
-
-#ifdef ATT_PLATFORM_POSIX
-	#include <signal.h>
-	typedef sigjmp_buf att_jmp_buf;
-	#define att_setjmp(env) sigsetjmp((env), 1)
-	#define att_longjmp(env, val) siglongjmp((env), (val))
-#else
-	/* Windows: Use standard C setjmp/longjmp */
-	typedef jmp_buf att_jmp_buf;
-	#define att_setjmp(env) setjmp(env)
-	#define att_longjmp(env, val) longjmp((env), (val))
-#endif
+/* Note: att_jmp_buf, att_setjmp, att_longjmp are defined in attest.h */
 
 /* ========================================================================
  * Alignment Attribute
