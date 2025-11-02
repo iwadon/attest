@@ -86,10 +86,9 @@ static void att_timeout_signal_handler(int signo)
 
 void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format)
 {
-	/* Ensure g_ctx is initialized */
-	if (!g_ctx) {
-		g_ctx = &g_ctx_root;
-	}
+	/* Ensure g_ctx is initialized by calling att_get_context() */
+	att_get_context();
+
 #ifdef ATT_PLATFORM_WINDOWS
 	/* Clean up any leftover timeout resources before clearing context */
 	if (g_ctx->timeout_thread || g_ctx->timeout_event) {
@@ -204,12 +203,14 @@ void att_context_abort(void)
 
 bool att_context_color_enabled(void)
 {
-	return g_ctx->color_enabled;
+	att_context_state *ctx = att_get_context();
+	return ctx->color_enabled;
 }
 
 const att_test_case *att_context_current_test(void)
 {
-	return g_ctx->test;
+	att_context_state *ctx = att_get_context();
+	return ctx->test;
 }
 
 void att_context_phase_set(att_context_phase phase)
@@ -222,12 +223,14 @@ void att_context_phase_set(att_context_phase phase)
 
 att_context_phase att_context_phase_current(void)
 {
-	return g_ctx->phase;
+	att_context_state *ctx = att_get_context();
+	return ctx->phase;
 }
 
 att_output_format att_context_get_format(void)
 {
-	return g_ctx->format;
+	att_context_state *ctx = att_get_context();
+	return ctx->format;
 }
 
 void att_info_scope_push(const char *fmt, ...)
@@ -336,33 +339,34 @@ void att_context_fixture_on_abort(void)
 
 void att_context_skip(const char *reason)
 {
-	if (!g_ctx->active) {
+	att_context_state *ctx = att_get_context();
+	if (!ctx || !ctx->active) {
 		return;
 	}
 
-	if (g_ctx->result.skip_reason) {
-		free(g_ctx->result.skip_reason);
-		g_ctx->result.skip_reason = NULL;
+	if (ctx->result.skip_reason) {
+		free(ctx->result.skip_reason);
+		ctx->result.skip_reason = NULL;
 	}
 
 	if (reason) {
-		g_ctx->result.skip_reason = att_dup_string(reason);
+		ctx->result.skip_reason = att_dup_string(reason);
 	}
 
-	g_ctx->result.skipped = true;
-	g_ctx->result.aborted = false;
+	ctx->result.skipped = true;
+	ctx->result.aborted = false;
 
 	const att_test_case *test = att_context_current_test();
 	const char *test_name = test ? test->fullname : "<unknown>";
 
-	bool suppress_default_output = (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT);
+	bool suppress_default_output = (ctx->format == ATT_OUTPUT_TAP || ctx->format == ATT_OUTPUT_JUNIT);
 	if (!suppress_default_output) {
 		printf("[  SKIPPED ] %s\n", test_name);
 		printf("  reason: %s\n", reason ? reason : "(none)");
 	}
 
 	att_context_fixture_on_abort();
-	att_longjmp(g_ctx->abort_env, 1);
+	att_longjmp(ctx->abort_env, 1);
 }
 
 void att_context_capture_failures(bool enabled)
