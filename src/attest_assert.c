@@ -56,7 +56,15 @@ typedef struct att_context_state {
 } ATT_ALIGN(16) att_context_state;
 
 static ATT_THREAD_LOCAL ATT_ALIGN(16) att_context_state g_ctx_root;
-static ATT_THREAD_LOCAL att_context_state *g_ctx = &g_ctx_root;
+static ATT_THREAD_LOCAL att_context_state *g_ctx;
+
+static inline att_context_state *att_get_context(void)
+{
+    if (!g_ctx) {
+        g_ctx = &g_ctx_root;
+    }
+    return g_ctx;
+}
 
 static char *att_dup_string(const char *text);
 static const char *att_color_fail(void);
