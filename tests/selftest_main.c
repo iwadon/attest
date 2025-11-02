@@ -588,6 +588,15 @@ TEST(Capture, CapturesStderr)
 	free(captured.data);
 }
 
+TEST(Summary, ReturnsZeroBeforeRun)
+{
+	attest_summary sum = attest_get_summary();
+	EXPECT_EQ(0, sum.total);
+	EXPECT_EQ(0, sum.passed);
+	EXPECT_EQ(0, sum.failed);
+	EXPECT_EQ(0, sum.skipped);
+}
+
 int main(int argc, char **argv)
 {
 	ATT_REGISTER_TESTS(manual_register_function);

@@ -8,6 +8,8 @@
 #include "internal/attest_context.h"
 #include "internal/attest_internal.h"
 
+static att_summary g_last_summary;
+
 static const char *att_color_green(bool enabled)
 {
 	return enabled ? "\033[32m" : "";
@@ -397,6 +399,7 @@ int attest_main(int argc, char **argv)
 
 	att_summary summary;
 	exit_code = att_run_tests(registry, &opts, &summary);
+	g_last_summary = summary;
 	if (opts.format == ATT_OUTPUT_DEFAULT) {
 		att_report_summary(&summary, opts.color_enabled);
 	}
@@ -407,4 +410,17 @@ cleanup:
 	}
 	att_cli_dispose(&opts);
 	return exit_code;
+}
+
+attest_summary attest_get_summary(void)
+{
+	attest_summary result;
+	result.total = g_last_summary.tests_run;
+	result.passed = g_last_summary.tests_run - g_last_summary.tests_failed - g_last_summary.tests_skipped;
+	result.failed = g_last_summary.tests_failed;
+	result.skipped = g_last_summary.tests_skipped;
+	if (result.passed < 0) {
+		result.passed = 0;
+	}
+	return result;
 }

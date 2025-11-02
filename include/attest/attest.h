@@ -25,6 +25,13 @@ typedef struct att_result {
 	att_status status;
 } att_result;
 
+typedef struct attest_summary {
+	int total;
+	int passed;
+	int failed;
+	int skipped;
+} attest_summary;
+
 typedef void (*att_test_fn)(void);
 typedef void (*att_register_fn)(void);
 
@@ -32,6 +39,7 @@ typedef void (*att_fixture_hook)(void *);
 typedef void (*att_fixture_body_fn)(void *);
 
 int attest_main(int argc, char **argv);
+attest_summary attest_get_summary(void);
 
 att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att_result *out);
 typedef struct att_subtest_scope att_subtest_scope;
