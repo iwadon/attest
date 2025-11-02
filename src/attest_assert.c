@@ -86,6 +86,10 @@ static void att_timeout_signal_handler(int signo)
 
 void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format)
 {
+	/* Ensure g_ctx is initialized */
+	if (!g_ctx) {
+		g_ctx = &g_ctx_root;
+	}
 #ifdef ATT_PLATFORM_WINDOWS
 	/* Clean up any leftover timeout resources before clearing context */
 	if (g_ctx->timeout_thread || g_ctx->timeout_event) {
