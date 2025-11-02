@@ -426,6 +426,12 @@ int attest_main(int argc, char **argv)
 		goto cleanup;
 	}
 
+	if (opts.help_requested) {
+		att_print_help(argv[0]);
+		exit_code = 0;
+		goto cleanup;
+	}
+
 	att_registry_finalize();
 	registry_locked = true;
 

@@ -12,41 +12,41 @@ typedef struct att_test_result att_test_result;
  * ======================================================================== */
 /* Note: ATT_PLATFORM_POSIX is defined in attest.h */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-	#define ATT_PLATFORM_WINDOWS
+#define ATT_PLATFORM_WINDOWS
 #endif
 
 /* ========================================================================
  * Thread Support Detection
  * ======================================================================== */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
-	/* C11 threads.h support */
-	#define ATT_THREADS_C11 1
-	#define ATT_THREAD_LOCAL _Thread_local
+/* C11 threads.h support */
+#define ATT_THREADS_C11 1
+#define ATT_THREAD_LOCAL _Thread_local
 #elif defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L
-	/* POSIX threads (pthread) support */
-	#define ATT_THREADS_POSIX 1
-	#if defined(__GNUC__) || defined(__clang__)
-		#define ATT_THREAD_LOCAL __thread
-	#else
-		#define ATT_THREAD_LOCAL _Thread_local
-	#endif
-#elif defined(_WIN32) || defined(_WIN64)
-	/* Windows threads support */
-	#define ATT_THREADS_WIN32 1
-	#define ATT_THREAD_LOCAL __declspec(thread)
+/* POSIX threads (pthread) support */
+#define ATT_THREADS_POSIX 1
+#if defined(__GNUC__) || defined(__clang__)
+#define ATT_THREAD_LOCAL __thread
 #else
-	/* No thread support */
-	#define ATT_THREADS_NONE 1
-	#define ATT_THREAD_LOCAL /* No TLS support, use global variables */
+#define ATT_THREAD_LOCAL _Thread_local
+#endif
+#elif defined(_WIN32) || defined(_WIN64)
+/* Windows threads support */
+#define ATT_THREADS_WIN32 1
+#define ATT_THREAD_LOCAL __declspec(thread)
+#else
+/* No thread support */
+#define ATT_THREADS_NONE 1
+#define ATT_THREAD_LOCAL /* No TLS support, use global variables */
 #endif
 
 /* ========================================================================
  * Compiler Detection
  * ======================================================================== */
 #if defined(_MSC_VER)
-	#define ATT_COMPILER_MSVC
+#define ATT_COMPILER_MSVC
 #elif defined(__GNUC__) || defined(__clang__)
-	#define ATT_COMPILER_GCC_LIKE
+#define ATT_COMPILER_GCC_LIKE
 #endif
 
 /* ========================================================================
@@ -58,50 +58,50 @@ typedef struct att_test_result att_test_result;
  * Alignment Attribute
  * ======================================================================== */
 #ifdef ATT_COMPILER_MSVC
-	#define ATT_ALIGN(n) __declspec(align(n))
+#define ATT_ALIGN(n) __declspec(align(n))
 #elif defined(ATT_COMPILER_GCC_LIKE)
-	#define ATT_ALIGN(n) __attribute__((aligned(n)))
+#define ATT_ALIGN(n) __attribute__((aligned(n)))
 #else
-	#define ATT_ALIGN(n) _Alignas(n)
+#define ATT_ALIGN(n) _Alignas(n)
 #endif
 
 /* ========================================================================
  * Constructor Attribute (for auto-registration)
  * ======================================================================== */
 #ifdef ATT_COMPILER_MSVC
-	#define ATT_CONSTRUCTOR /* MSVC uses .CRT$XCU section, handled in attest.h */
+#define ATT_CONSTRUCTOR /* MSVC uses .CRT$XCU section, handled in attest.h */
 #elif defined(ATT_COMPILER_GCC_LIKE)
-	#define ATT_CONSTRUCTOR __attribute__((constructor))
+#define ATT_CONSTRUCTOR __attribute__((constructor))
 #else
-	#define ATT_CONSTRUCTOR /* Fallback: manual registration required */
+#define ATT_CONSTRUCTOR /* Fallback: manual registration required */
 #endif
 
 /* ========================================================================
  * Cleanup Attribute (for scoped info)
  * ======================================================================== */
 #ifdef ATT_COMPILER_MSVC
-	#define ATT_CLEANUP(fn) /* MSVC: cleanup not supported, use manual management */
+#define ATT_CLEANUP(fn) /* MSVC: cleanup not supported, use manual management */
 #elif defined(ATT_COMPILER_GCC_LIKE)
-	#define ATT_CLEANUP(fn) __attribute__((cleanup(fn)))
+#define ATT_CLEANUP(fn) __attribute__((cleanup(fn)))
 #else
-	#define ATT_CLEANUP(fn) /* Fallback: manual cleanup required */
+#define ATT_CLEANUP(fn) /* Fallback: manual cleanup required */
 #endif
 
 typedef struct att_test_case {
-	const char* suite;
-	const char* name;
-	const char* fullname;
-	const char* file;
+	const char *suite;
+	const char *name;
+	const char *fullname;
+	const char *file;
 	int line;
 	att_test_fn fn;
 } att_test_case;
 
 typedef struct att_registry {
-	att_test_case* tests;
+	att_test_case *tests;
 	size_t count;
 	size_t capacity;
 	bool frozen;
-	const char* last_error;
+	const char *last_error;
 	bool cleanup_registered;
 } att_registry;
 
@@ -113,12 +113,13 @@ typedef enum att_output_format {
 
 typedef struct att_cli_options {
 	bool list_only;
+	bool help_requested;
 	bool color_enabled;
-	const char* filter_raw;
-	char** filters;
+	const char *filter_raw;
+	char **filters;
 	size_t filter_count;
 	att_output_format format;
-	char* output_path;
+	char *output_path;
 	int timeout_ms;
 	int jobs;
 } att_cli_options;
@@ -147,17 +148,18 @@ typedef struct att_worker_pool att_worker_pool;
 typedef struct att_worker att_worker;
 #endif
 
-att_registry* att_registry_get(void);
+att_registry *att_registry_get(void);
 void att_registry_finalize(void);
-int att_registry_add(const char* suite, const char* name, att_test_fn fn, const char* file, int line, const char** error);
-const char* att_registry_error(void);
+int att_registry_add(const char *suite, const char *name, att_test_fn fn, const char *file, int line, const char **error);
+const char *att_registry_error(void);
 
-int att_cli_parse(int argc, char** argv, att_cli_options* out_opts, char** err_msg);
-void att_cli_dispose(att_cli_options* opts);
-bool att_filter_match(const att_test_case* test, const att_cli_options* opts);
-void att_print_list(const att_registry* registry, const att_cli_options* opts);
-int att_run_tests(const att_registry* registry, const att_cli_options* opts, att_summary* summary);
-void att_report_summary(const att_summary* summary, bool color_enabled);
+int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_msg);
+void att_cli_dispose(att_cli_options *opts);
+bool att_filter_match(const att_test_case *test, const att_cli_options *opts);
+void att_print_list(const att_registry *registry, const att_cli_options *opts);
+void att_print_help(const char *program_name);
+int att_run_tests(const att_registry *registry, const att_cli_options *opts, att_summary *summary);
+void att_report_summary(const att_summary *summary, bool color_enabled);
 void att_registry_cleanup(void);
 
 /* ========================================================================

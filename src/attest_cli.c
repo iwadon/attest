@@ -175,6 +175,7 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 	}
 
 	out_opts->list_only = false;
+	out_opts->help_requested = false;
 	out_opts->color_enabled = true;
 	out_opts->filter_raw = NULL;
 	out_opts->filters = NULL;
@@ -186,6 +187,10 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 
 	for (int i = 1; i < argc; ++i) {
 		const char *arg = argv[i];
+		if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+			out_opts->help_requested = true;
+			continue;
+		}
 		if (strncmp(arg, "--filter=", 9) == 0) {
 			const char *value = arg + 9;
 			if (att_parse_filter_patterns(value, out_opts, err_msg) != 0) {
@@ -422,8 +427,43 @@ void att_cli_dispose(att_cli_options *opts)
 	opts->filter_count = 0;
 	opts->filter_raw = NULL;
 	opts->list_only = false;
+	opts->help_requested = false;
 	opts->color_enabled = true;
 	opts->output_path = NULL;
 	opts->format = ATT_OUTPUT_DEFAULT;
 	opts->timeout_ms = 0;
+}
+
+void att_print_help(const char *program_name)
+{
+	if (!program_name) {
+		program_name = "attest";
+	}
+	printf("Usage: %s [OPTIONS]\n\n", program_name);
+	printf("A C11 unit testing framework inspired by GoogleTest.\n\n");
+	printf("Options:\n");
+	printf("  -h, --help              Display this help message and exit\n");
+	printf("  --list                  List all available tests and exit\n");
+	printf("  --filter=PATTERN        Run tests matching PATTERN (wildcards: * and ?)\n");
+	printf("                          Multiple patterns can be separated by ';'\n");
+	printf("                          Shorthand: 'Suite' -> 'Suite.*', '.Name' -> '*.Name'\n");
+	printf("  --no-color              Disable colored output\n");
+	printf("  --format=FORMAT         Output format: default, tap, or junit\n");
+	printf("  --output=FILE           Write output to FILE (requires --format=junit)\n");
+	printf("  --timeout-ms=MS         Set test timeout in milliseconds\n");
+	printf("  --jobs=N                Run tests in parallel with N workers\n");
+	printf("                          Use 'auto' or 0 to auto-detect CPU count\n");
+	printf("\n");
+	printf("Exit codes:\n");
+	printf("  0  All tests passed or --list mode\n");
+	printf("  1  One or more test failures\n");
+	printf("  2  CLI parsing error\n");
+	printf("  3  Initialization failure\n");
+	printf("\n");
+	printf("Examples:\n");
+	printf("  %s                       Run all tests\n", program_name);
+	printf("  %s --list                List all tests\n", program_name);
+	printf("  %s --filter=Suite.*      Run all tests in Suite\n", program_name);
+	printf("  %s --filter=*.Name       Run all tests named Name\n", program_name);
+	printf("  %s --jobs=auto           Run tests in parallel (auto-detect CPUs)\n", program_name);
 }
