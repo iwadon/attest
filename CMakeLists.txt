@@ -5,12 +5,16 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# Thread library detection (for parallel execution support)
+find_package(Threads)
+
 add_library(attest STATIC
     src/attest.c
     src/attest_cli.c
     src/attest_assert.c
     src/attest_capture.c
     src/attest_fixture.c
+    src/attest_parallel.c
     src/internal/attest_registry.c
 )
 
@@ -20,6 +24,11 @@ target_include_directories(attest
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+# Link pthread library if available (for parallel execution)
+if(Threads_FOUND AND CMAKE_USE_PTHREADS_INIT)
+    target_link_libraries(attest PRIVATE Threads::Threads)
+endif()
 
 # Platform-specific compile definitions
 if(WIN32)
@@ -86,4 +95,13 @@ if(ATTEST_BUILD_TESTING)
       tests/timeout_test.c
   )
   target_link_libraries(attest_timeout_test PRIVATE attest)
+
+  # Thread detection test executable (for verifying Phase 1 implementation)
+  add_executable(attest_thread_detection_test
+      tests/test_thread_detection.c
+  )
+  target_include_directories(attest_thread_detection_test PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
 endif()

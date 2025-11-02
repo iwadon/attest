@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_SC_NPROCESSORS_ONLN)
+#include <unistd.h>
+#endif
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #include "attest/attest.h"
 #include "internal/attest_internal.h"
 
@@ -174,6 +182,7 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 	out_opts->format = ATT_OUTPUT_DEFAULT;
 	out_opts->output_path = NULL;
 	out_opts->timeout_ms = 0;
+	out_opts->jobs = 1;
 
 	for (int i = 1; i < argc; ++i) {
 		const char *arg = argv[i];
@@ -243,6 +252,55 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 				return 1;
 			}
 			out_opts->timeout_ms = (int)parsed;
+			continue;
+		}
+		if (strncmp(arg, "--jobs=", 7) == 0) {
+			const char *value = arg + 7;
+			if (!*value) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: invalid jobs value");
+				}
+				return 1;
+			}
+			/* Handle --jobs=auto */
+			if (strcmp(value, "auto") == 0) {
+				/* Auto-detect CPU count */
+#if defined(_SC_NPROCESSORS_ONLN)
+				long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+				out_opts->jobs = (cpus > 0) ? (int)cpus : 1;
+#elif defined(_WIN32)
+				SYSTEM_INFO sysinfo;
+				GetSystemInfo(&sysinfo);
+				out_opts->jobs = (int)sysinfo.dwNumberOfProcessors;
+#else
+				out_opts->jobs = 1; /* Fallback */
+#endif
+				continue;
+			}
+			/* Handle --jobs=N */
+			char *endptr = NULL;
+			long parsed = strtol(value, &endptr, 10);
+			if (!endptr || *endptr != '\0' || parsed < 0 || parsed > INT_MAX) {
+				if (err_msg) {
+					*err_msg = att_strdup("error: invalid jobs value");
+				}
+				return 1;
+			}
+			/* Handle --jobs=0 as auto */
+			if (parsed == 0) {
+#if defined(_SC_NPROCESSORS_ONLN)
+				long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+				out_opts->jobs = (cpus > 0) ? (int)cpus : 1;
+#elif defined(_WIN32)
+				SYSTEM_INFO sysinfo;
+				GetSystemInfo(&sysinfo);
+				out_opts->jobs = (int)sysinfo.dwNumberOfProcessors;
+#else
+				out_opts->jobs = 1; /* Fallback */
+#endif
+			} else {
+				out_opts->jobs = (int)parsed;
+			}
 			continue;
 		}
 		if (err_msg) {

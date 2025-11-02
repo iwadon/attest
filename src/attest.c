@@ -187,6 +187,44 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 
 	memset(summary, 0, sizeof(*summary));
 	summary->tests_total = (int)registry->count;
+
+#ifdef ATT_THREADS_POSIX
+	/* Parallel execution path */
+	if (opts->jobs > 1) {
+		/* Count suites for summary */
+		size_t suite_count = 0;
+		const char **suite_names = NULL;
+		if (att_collect_suites(registry, opts, &suite_names, &suite_count) != 0) {
+			return 3;
+		}
+		summary->suites_total = (int)suite_count;
+		free(suite_names);
+
+		/* Count selected tests */
+		for (size_t i = 0; i < registry->count; ++i) {
+			const att_test_case *test = &registry->tests[i];
+			if (att_filter_match(test, opts)) {
+				++summary->tests_selected;
+			}
+		}
+
+		/* Print header */
+		bool tap_mode = opts->format == ATT_OUTPUT_TAP;
+		bool junit_mode = opts->format == ATT_OUTPUT_JUNIT;
+		if (junit_mode) {
+			/* JUnit format suppresses default header. */
+		} else if (tap_mode) {
+			printf("1..%d\n", summary->tests_selected);
+		} else {
+			printf("[==========] Running %d tests from %d suites.\n", summary->tests_selected, summary->suites_total);
+		}
+
+		/* Run tests in parallel */
+		return att_run_tests_parallel(registry, opts, summary);
+	}
+#endif
+
+	/* Sequential execution path (existing implementation) */
 	bool tap_mode = opts->format == ATT_OUTPUT_TAP;
 	bool junit_mode = opts->format == ATT_OUTPUT_JUNIT;
 	att_recorded_test *records = NULL;
@@ -400,8 +438,12 @@ int attest_main(int argc, char **argv)
 	att_summary summary;
 	exit_code = att_run_tests(registry, &opts, &summary);
 	g_last_summary = summary;
+
+	/* Report summary for non-JUnit formats */
 	if (opts.format == ATT_OUTPUT_DEFAULT) {
 		att_report_summary(&summary, opts.color_enabled);
+	} else if (opts.format == ATT_OUTPUT_TAP) {
+		/* TAP format: no summary needed, individual test results are sufficient */
 	}
 
 cleanup:

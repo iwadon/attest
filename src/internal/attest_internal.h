@@ -6,6 +6,9 @@
 
 #include "attest/attest.h"
 
+/* Forward declarations to avoid circular dependencies */
+typedef struct att_test_result att_test_result;
+
 /* ========================================================================
  * Platform Detection
  * ======================================================================== */
@@ -13,6 +16,31 @@
 	#define ATT_PLATFORM_WINDOWS
 #else
 	#define ATT_PLATFORM_POSIX
+#endif
+
+/* ========================================================================
+ * Thread Support Detection
+ * ======================================================================== */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
+	/* C11 threads.h support */
+	#define ATT_THREADS_C11 1
+	#define ATT_THREAD_LOCAL _Thread_local
+#elif defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L
+	/* POSIX threads (pthread) support */
+	#define ATT_THREADS_POSIX 1
+	#if defined(__GNUC__) || defined(__clang__)
+		#define ATT_THREAD_LOCAL __thread
+	#else
+		#define ATT_THREAD_LOCAL _Thread_local
+	#endif
+#elif defined(_WIN32) || defined(_WIN64)
+	/* Windows threads support */
+	#define ATT_THREADS_WIN32 1
+	#define ATT_THREAD_LOCAL __declspec(thread)
+#else
+	/* No thread support */
+	#define ATT_THREADS_NONE 1
+	#define ATT_THREAD_LOCAL /* No TLS support, use global variables */
 #endif
 
 /* ========================================================================
@@ -107,6 +135,7 @@ typedef struct att_cli_options {
 	att_output_format format;
 	char* output_path;
 	int timeout_ms;
+	int jobs;
 } att_cli_options;
 
 typedef struct att_summary {
@@ -121,6 +150,18 @@ typedef struct att_summary {
 	int failures_total;
 } att_summary;
 
+/* ========================================================================
+ * Parallel Execution Data Structures
+ * ======================================================================== */
+
+/* Opaque types for parallel execution (implementation in attest_parallel.c) */
+typedef struct att_parallel_result att_parallel_result;
+
+#ifdef ATT_THREADS_POSIX
+typedef struct att_worker_pool att_worker_pool;
+typedef struct att_worker att_worker;
+#endif
+
 att_registry* att_registry_get(void);
 void att_registry_finalize(void);
 int att_registry_add(const char* suite, const char* name, att_test_fn fn, const char* file, int line, const char** error);
@@ -133,5 +174,23 @@ void att_print_list(const att_registry* registry, const att_cli_options* opts);
 int att_run_tests(const att_registry* registry, const att_cli_options* opts, att_summary* summary);
 void att_report_summary(const att_summary* summary, bool color_enabled);
 void att_registry_cleanup(void);
+
+/* ========================================================================
+ * Parallel Execution API (Phase 2+)
+ * ======================================================================== */
+
+#ifdef ATT_THREADS_POSIX
+int att_worker_pool_init(att_worker_pool *pool, const att_registry *registry,
+	const att_cli_options *options, size_t total_tests);
+void att_worker_pool_destroy(att_worker_pool *pool);
+int att_run_tests_parallel(const att_registry *registry, const att_cli_options *opts, att_summary *summary);
+#endif
+
+#ifdef ATT_THREADS_NONE
+/* Fallback stubs for non-threaded environments */
+int att_worker_pool_init(void *pool, const void *registry,
+	const void *options, size_t total_tests);
+void att_worker_pool_destroy(void *pool);
+#endif
 
 #endif /* ATTEST_INTERNAL_H */

@@ -55,14 +55,14 @@ typedef struct att_context_state {
 #endif
 } ATT_ALIGN(16) att_context_state;
 
-static ATT_ALIGN(16) att_context_state g_ctx_root;
-static att_context_state *g_ctx = &g_ctx_root;
+static ATT_THREAD_LOCAL ATT_ALIGN(16) att_context_state g_ctx_root;
+static ATT_THREAD_LOCAL att_context_state *g_ctx = &g_ctx_root;
 
 static char *att_dup_string(const char *text);
 static const char *att_color_fail(void);
 static const char *att_color_reset(void);
 static bool att_context_failure_append_format(const char *fmt, ...);
-static bool g_timeout_handler_installed;
+static ATT_THREAD_LOCAL bool g_timeout_handler_installed;
 
 #ifdef ATT_PLATFORM_POSIX
 static void att_timeout_signal_handler(int signo)

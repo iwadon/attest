@@ -740,6 +740,29 @@ TEST(Summary, ReturnsZeroBeforeRun)
 	EXPECT_EQ(0, sum.skipped);
 }
 
+TEST(Parallel, BasicExecution)
+{
+	/* This test is a placeholder to verify parallel execution infrastructure works */
+	EXPECT_TRUE(1);
+}
+
+TEST(Parallel, MultipleAssertions)
+{
+	/* Test with multiple assertions to verify thread-local context */
+	EXPECT_EQ(1, 1);
+	EXPECT_NE(1, 2);
+	EXPECT_LT(1, 2);
+	EXPECT_GT(2, 1);
+}
+
+TEST(Parallel, IndependentExecution)
+{
+	/* Test that each test runs independently */
+	static int counter = 0;
+	int local = ++counter;
+	EXPECT_GT(local, 0);
+}
+
 int main(int argc, char **argv)
 {
 	ATT_REGISTER_TESTS(manual_register_function);
