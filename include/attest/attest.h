@@ -1,6 +1,18 @@
 #ifndef ATTEST_ATTEST_H
 #define ATTEST_ATTEST_H
 
+/* Platform detection for setjmp/longjmp */
+#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
+	#define ATT_PLATFORM_POSIX
+#endif
+
+/* Enable POSIX features for sigjmp_buf/sigsetjmp/siglongjmp */
+#ifdef ATT_PLATFORM_POSIX
+	#ifndef _POSIX_C_SOURCE
+		#define _POSIX_C_SOURCE 200809L
+	#endif
+#endif
+
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -9,11 +21,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/* Platform detection for setjmp/longjmp */
-#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
-	#define ATT_PLATFORM_POSIX
 #endif
 
 #ifdef ATT_PLATFORM_POSIX
