@@ -42,9 +42,20 @@ int attest_main(int argc, char **argv);
 attest_summary attest_get_summary(void);
 
 att_status att_run_subtest(const char *name, void (*fn)(void *), void *user, att_result *out);
+
+/* Opaque subtest scope structure */
 typedef struct att_subtest_scope att_subtest_scope;
 att_subtest_scope *att_subtest_scope_enter(const char *name);
-int att_subtest_scope_protect(att_subtest_scope *scope);
+
+/* Internal helper - do not call directly */
+int att__subtest_scope_active(const att_subtest_scope *scope);
+int att__context_protect_internal(void);
+
+/* Must be a macro to avoid stack frame issues with setjmp/longjmp.
+ * setjmp must be called in the same stack frame that will handle longjmp. */
+#define att_subtest_scope_protect(scope) \
+	(att__subtest_scope_active(scope) ? att__context_protect_internal() : 1)
+
 att_status att_subtest_scope_leave(att_subtest_scope *scope, att_result *out);
 
 typedef struct att_captured {

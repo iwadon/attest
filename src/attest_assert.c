@@ -60,10 +60,10 @@ static ATT_THREAD_LOCAL att_context_state *g_ctx;
 
 static inline att_context_state *att_get_context(void)
 {
-    if (!g_ctx) {
-        g_ctx = &g_ctx_root;
-    }
-    return g_ctx;
+	if (!g_ctx) {
+		g_ctx = &g_ctx_root;
+	}
+	return g_ctx;
 }
 
 static char *att_dup_string(const char *text);
@@ -189,16 +189,17 @@ void att_context_register_failure(bool fatal)
 
 void att_context_abort(void)
 {
-	if (!g_ctx->active) {
+	att_context_state *ctx = att_get_context();
+	if (!ctx || !ctx->active) {
 		return;
 	}
-	g_ctx->result.aborted = true;
+	ctx->result.aborted = true;
 	att_context_fixture_on_abort();
 	/* Save timeout_ms before stopping, as stop clears it */
-	int saved_timeout_ms = g_ctx->timeout_ms;
+	int saved_timeout_ms = ctx->timeout_ms;
 	att_context_timeout_stop();
-	g_ctx->timeout_ms = saved_timeout_ms;
-	att_longjmp(g_ctx->abort_env, 1);
+	ctx->timeout_ms = saved_timeout_ms;
+	att_longjmp(ctx->abort_env, 1);
 }
 
 bool att_context_color_enabled(void)
@@ -1707,7 +1708,8 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 		return NULL;
 	}
 
-	att_context_state *parent = g_ctx;
+	/* Ensure g_ctx is initialized before saving parent context */
+	att_context_state *parent = att_get_context();
 	scope->previous = parent;
 
 	const char *parent_suite = (parent && parent->active && parent->test && parent->test->suite) ? parent->test->suite : "<subtest>";
@@ -1733,24 +1735,37 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 
 	bool color = att_context_color_enabled();
 	att_output_format format = (scope->previous && scope->previous->active) ? scope->previous->format : ATT_OUTPUT_DEFAULT;
+
+	/* Initialize scope->state directly without switching g_ctx first */
+	memset(&scope->state, 0, sizeof(scope->state));
+	scope->state.test = &scope->temp;
+	scope->state.color_enabled = color;
+	scope->state.format = format;
+	scope->state.active = true;
+	scope->state.phase = ATT_CONTEXT_PHASE_TEST;
+	scope->state.previous = scope->previous;
+
+	/* Now switch g_ctx to the new subtest context */
 	g_ctx = &scope->state;
-	att_context_begin(&scope->temp, color, format);
-	g_ctx->previous = scope->previous;
 	scope->active = true;
 	return scope;
 }
 
-int att_subtest_scope_protect(att_subtest_scope *scope)
+/* Helper for att_subtest_scope_protect macro */
+int att__subtest_scope_active(const att_subtest_scope *scope)
 {
-	if (!scope || !scope->active) {
-		return 1;
-	}
+	return (scope && scope->active) ? 1 : 0;
+}
+
+/* Helper for att_subtest_scope_protect macro - calls att_context_protect */
+int att__context_protect_internal(void)
+{
 	return att_context_protect();
 }
 
 static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_result *out)
 {
-	att_context_state *parent = scope ? scope->previous : g_ctx;
+	att_context_state *parent = scope ? scope->previous : att_get_context();
 	if (!scope || !scope->active) {
 		if (out) {
 			memset(out, 0, sizeof(*out));
