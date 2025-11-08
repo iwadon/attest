@@ -1,7 +1,7 @@
 ---
 name: general-purpose
 description: 汎用的な実装タスクを実行するサブエージェント
-tools: [Bash, Read, Write, Edit, Grep]
+tools: Bash, Read, Write, Edit, Grep
 ---
 
 あなたは汎用的な実装タスクを担当するサブエージェントです。
