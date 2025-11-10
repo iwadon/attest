@@ -401,6 +401,7 @@ void att_context_capture_failures(bool enabled)
 }
 
 #ifdef ATT_PLATFORM_POSIX
+/* POSIX implementation: signal-based timeout using setitimer */
 static void att_timeout_install_handler(void)
 {
 	if (g_timeout_handler_installed) {
@@ -439,6 +440,18 @@ void att_context_timeout_stop(void)
 	if (g_ctx) {
 		g_ctx->timeout_ms = 0;
 	}
+}
+#elif defined(ATT_PLATFORM_HUMAN68K)
+/* Human68k: Timeout feature not supported (no setitimer/sigaction available) */
+void att_context_timeout_start(int timeout_ms)
+{
+	(void)timeout_ms;
+	/* No-op: timeout not supported on Human68k */
+}
+
+void att_context_timeout_stop(void)
+{
+	/* No-op: timeout not supported on Human68k */
 }
 #else
 /* Windows: Timeout feature using threads */

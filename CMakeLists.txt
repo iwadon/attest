@@ -83,8 +83,8 @@ if(ATTEST_BUILD_TESTING)
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-  # Link math library on Unix-like systems (for nextafter in ULP tests)
-  if(UNIX)
+  # Link math library on Unix-like systems and Human68k (for nextafter in ULP tests)
+  if(UNIX OR ATTEST_TARGET_HUMAN68K)
       target_link_libraries(attest_selftest PRIVATE m)
   endif()
 

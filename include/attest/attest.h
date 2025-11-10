@@ -2,7 +2,11 @@
 #define ATTEST_ATTEST_H
 
 /* Platform detection for setjmp/longjmp */
-#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
+/* Human68k (Sharp X680x0 series): m68k-based platform with POSIX-like APIs */
+#if defined(__human68k__) || defined(__human68k)
+	#define ATT_PLATFORM_HUMAN68K
+/* Unix-like systems: Linux, macOS, BSD, etc. */
+#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__)
 	#define ATT_PLATFORM_POSIX
 #endif
 
@@ -13,6 +17,10 @@
 	#endif
 #endif
 
+/* Platform-specific includes for setjmp/longjmp */
+#ifdef ATT_PLATFORM_POSIX
+	#include <signal.h>  /* For sigjmp_buf, sigsetjmp, siglongjmp */
+#endif
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -23,13 +31,14 @@
 extern "C" {
 #endif
 
+/* setjmp/longjmp abstraction */
 #ifdef ATT_PLATFORM_POSIX
-	#include <signal.h>
+	/* POSIX: Use signal-aware setjmp to preserve signal mask */
 	typedef sigjmp_buf att_jmp_buf;
 	#define att_setjmp(env) sigsetjmp((env), 1)
 	#define att_longjmp(env, val) siglongjmp((env), (val))
 #else
-	/* Windows: Use standard C setjmp/longjmp */
+	/* Human68k, Windows, and others: Use standard C setjmp/longjmp */
 	typedef jmp_buf att_jmp_buf;
 	#define att_setjmp(env) setjmp(env)
 	#define att_longjmp(env, val) longjmp((env), (val))

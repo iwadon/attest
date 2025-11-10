@@ -9,7 +9,10 @@
 
 #include "attest/attest.h"
 
-#if defined(_WIN32)
+#if defined(ATT_PLATFORM_HUMAN68K)
+/* Human68k: capture not supported (no dup/dup2 available) */
+#define ATT_CAPTURE_DISABLED
+#elif defined(_WIN32)
 #include <io.h>
 #define ATT_DUP _dup
 #define ATT_DUP2 _dup2
@@ -22,6 +25,28 @@
 #define ATT_CLOSE close
 #define ATT_FILENO fileno
 #endif
+
+#ifdef ATT_CAPTURE_DISABLED
+/* Human68k: Stub implementations for disabled capture functionality */
+
+int att_capture_begin(void)
+{
+	/* No-op: capture not supported */
+	return -1;
+}
+
+int att_capture_end(att_captured *out)
+{
+	if (out) {
+		out->data = NULL;
+		out->size = 0;
+	}
+	/* No-op: capture not supported */
+	return -1;
+}
+
+#else
+/* Full capture implementation for platforms with dup/dup2 support */
 
 typedef struct att_capture_state {
 	int original_fd;
@@ -147,3 +172,5 @@ int att_capture_end(att_captured *out)
 
 	return 0;
 }
+
+#endif /* ATT_CAPTURE_DISABLED */

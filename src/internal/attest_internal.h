@@ -18,7 +18,11 @@ typedef struct att_test_result att_test_result;
 /* ========================================================================
  * Thread Support Detection
  * ======================================================================== */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
+#if defined(ATT_PLATFORM_HUMAN68K)
+/* Human68k: No thread support (single-threaded only) */
+#define ATT_THREADS_NONE 1
+#define ATT_THREAD_LOCAL /* No TLS support, use global variables */
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
 /* C11 threads.h support */
 #define ATT_THREADS_C11 1
 #define ATT_THREAD_LOCAL _Thread_local

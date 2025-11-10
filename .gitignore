@@ -97,3 +97,4 @@ CMakeUserPresets.json
 .claude/session-state.md
 .claude/settings.local.json
 build/
+build-*/
