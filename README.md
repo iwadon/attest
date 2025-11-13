@@ -1,5 +1,7 @@
 # attest
 
+**English** | [日本語](README.ja.md)
+
 A lightweight C11 unit testing framework inspired by GoogleTest, designed for simplicity and automatic test registration.
 
 ## Features
