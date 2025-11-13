@@ -282,7 +282,7 @@ attest/
 
 The project follows a phased development approach:
 
-- **P0 (Implemented)**: Core functionality - C11, basic assertions, CLI filtering, fixtures
+- **P0 (Implemented)**: Core functionality - C11, basic assertions, CLI filtering, exit codes, fixtures
 - **P1 (Implemented)**: TAP/JUnit output, test timeouts, test skipping, parallel execution
 - **P1+ (Future)**: C89/90 support, advanced filtering, performance optimizations
 

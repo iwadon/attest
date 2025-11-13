@@ -82,7 +82,7 @@ The project uses CMake with an out-of-source build strategy:
 
 The project maintains detailed specification documents in `docs/`:
 
-- **P0 (Implemented)**: `docs/attest_p0_spec.md` - Core functionality (C11, basic assertions, CLI, exit codes, fixtures)
+- **P0 (Implemented)**: `docs/attest_p0_spec.md` - Core functionality (C11, basic assertions, CLI filtering, exit codes, fixtures)
 - **P1 (Implemented)**: `docs/attest_p1_spec.md` - TAP/JUnit output, timeouts, test skipping, parallel execution
 - **P1+ (Future)**: `docs/attest_p1_plus_spec.md` - Long-term goals (C89/90 support, advanced filtering, performance optimizations)
 
