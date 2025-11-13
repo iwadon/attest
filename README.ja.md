@@ -272,6 +272,7 @@ attest/
 │   ├── attest_assert.c   # アサーション実装
 │   ├── attest_capture.c  # 出力キャプチャ
 │   ├── attest_fixture.c  # フィクスチャサポート
+│   ├── attest_parallel.c # 並列実行サポート
 │   └── internal/         # 内部レジストリ
 ├── tests/                 # セルフテスト
 ├── docs/                  # 仕様書（P0、P1、P1+）
