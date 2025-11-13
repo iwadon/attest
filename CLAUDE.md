@@ -82,11 +82,13 @@ The project uses CMake with an out-of-source build strategy:
 
 The project maintains detailed specification documents in `docs/`:
 
-- **P0 (Current)**: `docs/attest_p0_spec.md` - Core functionality (C11, single-threaded, basic assertions, CLI, exit codes)
-- **P1 (Roadmap)**: `docs/attest_p1_spec.md` - Planned features (TAP/JUnit output, timeouts, advanced fixtures)
-- **P1+ (Future)**: `docs/attest_p1_plus_spec.md` - Long-term goals (C89/90 support, parallel execution, advanced filtering)
+- **P0 (Implemented)**: `docs/attest_p0_spec.md` - Core functionality (C11, basic assertions, CLI filtering, exit codes, fixtures)
+- **P1 (Implemented)**: `docs/attest_p1_spec.md` - TAP/JUnit output, timeouts, test skipping, parallel execution
+- **P1+ (Future)**: `docs/attest_p1_plus_spec.md` - Long-term goals (C89/90 support, advanced filtering, performance optimizations)
 
-When modifying behavior, reference the relevant spec section in commit messages. Tag TODOs with the planned stage: `// TODO(P1): implement TAP output`
+**Note**: The specification documents reflect the original planning phases. The current implementation includes all P0 and P1 features, though the specs may describe them as planned work.
+
+When modifying behavior, reference the relevant spec section in commit messages. Tag TODOs with the planned stage: `// TODO(P1+): implement advanced filtering`
 
 ## Development Workflow
 
