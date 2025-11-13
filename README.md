@@ -282,11 +282,13 @@ attest/
 
 The project follows a phased development approach:
 
-- **P0 (Current)**: Core functionality - C11, single-threaded, basic assertions, CLI
-- **P1 (Planned)**: TAP/JUnit output, test timeouts, advanced fixtures
-- **P1+ (Future)**: C89/90 support, parallel execution, advanced filtering
+- **P0 (Implemented)**: Core functionality - C11, basic assertions, CLI filtering, fixtures
+- **P1 (Implemented)**: TAP/JUnit output, test timeouts, test skipping, parallel execution
+- **P1+ (Future)**: C89/90 support, advanced filtering, performance optimizations
 
 See `docs/` directory for detailed specifications.
+
+**Note**: The current implementation includes all P0 and P1 features. The `docs/` specifications reflect the original planning phases and may not match the current implementation state.
 
 ## Contributing
 
