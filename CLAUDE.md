@@ -10,10 +10,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The project uses CMake with an out-of-source build strategy:
 
+### Unix-like Systems (macOS, Linux)
+
 - **Configure build**: `cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug`
 - **Build all**: `cmake --build build`
 - **Run all tests**: `./build/attest_selftest`
 - **Run tests via ctest**: `ctest --test-dir build --output-on-failure`
+
+### Windows (MSVC)
+
+- **Configure build**: `cmake -S . -B build`
+- **Build all (Debug)**: `cmake --build build --config Debug`
+- **Build all (Release)**: `cmake --build build --config Release`
+- **Run all tests**: `.\build\Debug\attest_selftest.exe` or `.\build\Release\attest_selftest.exe`
+- **Run tests via ctest**: `ctest --test-dir build -C Debug --output-on-failure`
+
+### Common Options
+
 - **Build testing toggle**: Use `-DATTEST_BUILD_TESTING=ON/OFF` to control test compilation. Default is ON when attest is the top-level project, OFF when used as a subproject.
 
 ## Architecture
@@ -110,8 +123,12 @@ When implementing new features:
 
 1. Add self-tests in `tests/selftest_main.c` that exercise the new functionality
 2. For bug fixes, add a regression test that reproduces the issue before fixing
-3. Run the full test suite: `./build/attest_selftest`
-4. Verify CLI behavior manually: `./build/attest_selftest --list`, `./build/attest_selftest --filter=Suite.*`
+3. Run the full test suite:
+   - Unix: `./build/attest_selftest`
+   - Windows: `.\build\Debug\attest_selftest.exe`
+4. Verify CLI behavior manually:
+   - Unix: `./build/attest_selftest --list`, `./build/attest_selftest --filter=Suite.*`
+   - Windows: `.\build\Debug\attest_selftest.exe --list`, `.\build\Debug\attest_selftest.exe --filter=Suite.*`
 5. Format code with `clang-format -i` before committing
 6. Tag TODOs with the planned stage: `// TODO(P1+): implement advanced filtering`
 
