@@ -909,6 +909,138 @@ TEST(Shuffle, AllElementsPreserved)
 	}
 }
 
+TEST(Shuffle, CLIParseShuffleInvalidPrefix)
+{
+	/* --shufflefoo should be rejected as unknown option */
+	char *argv[] = { "test", "--shufflefoo", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, CLIParseShuffleInvalidPrefix123)
+{
+	/* --shuffle123 should be rejected as unknown option */
+	char *argv[] = { "test", "--shuffle123", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, CLIParseShuffleNegativeSeed)
+{
+	/* Negative seed values should be rejected */
+	char *argv[] = { "test", "--shuffle=-1", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, CLIParseShuffleOverflowSeed)
+{
+	/* Seed values exceeding UINT_MAX should be rejected */
+	char *argv[] = { "test", "--shuffle=4294967296", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, CLIParseShuffleMaxValidSeed)
+{
+	/* UINT_MAX should be accepted */
+	char *argv[] = { "test", "--shuffle=4294967295", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(0, result);
+	EXPECT_TRUE(opts.shuffle);
+	EXPECT_EQ(4294967295u, opts.shuffle_seed);
+	EXPECT_TRUE(err_msg == NULL);
+}
+
+TEST(Shuffle, RegistryShuffleActualFunction)
+{
+	att_registry *registry = att_registry_get();
+	size_t count = registry->count;
+
+	/* Need at least 2 tests to verify shuffle */
+	if (count < 2) {
+		ATT_SKIP("Not enough tests registered to verify shuffle");
+	}
+
+	/* Record original order */
+	const char **original_names = malloc(count * sizeof(char *));
+	ASSERT_TRUE(original_names != NULL);
+	for (size_t i = 0; i < count; ++i) {
+		original_names[i] = registry->tests[i].name;
+	}
+
+	/* Shuffle with a fixed seed */
+	att_registry_shuffle(42);
+
+	/* Verify order changed (with high probability for large count) */
+	bool order_changed = false;
+	for (size_t i = 0; i < count; ++i) {
+		if (registry->tests[i].name != original_names[i]) {
+			order_changed = true;
+			break;
+		}
+	}
+	EXPECT_TRUE(order_changed);
+
+	/* Verify all tests are still present (no duplicates, no missing) */
+	for (size_t i = 0; i < count; ++i) {
+		bool found = false;
+		for (size_t j = 0; j < count; ++j) {
+			if (registry->tests[j].name == original_names[i]) {
+				found = true;
+				break;
+			}
+		}
+		EXPECT_TRUE(found);
+	}
+
+	/* Shuffle again with same seed and verify same result */
+	const char **shuffled_names = malloc(count * sizeof(char *));
+	ASSERT_TRUE(shuffled_names != NULL);
+	for (size_t i = 0; i < count; ++i) {
+		shuffled_names[i] = registry->tests[i].name;
+	}
+
+	/* Restore original order first by sorting (simple bubble sort) */
+	for (size_t i = 0; i < count; ++i) {
+		registry->tests[i].name = original_names[i];
+	}
+
+	/* Shuffle again with same seed */
+	att_registry_shuffle(42);
+
+	/* Verify same order as before */
+	for (size_t i = 0; i < count; ++i) {
+		EXPECT_TRUE(registry->tests[i].name == shuffled_names[i]);
+	}
+
+	free(original_names);
+	free(shuffled_names);
+}
+
 int main(int argc, char **argv)
 {
 	ATT_REGISTER_TESTS(manual_register_function);

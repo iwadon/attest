@@ -312,13 +312,30 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 			continue;
 		}
 		if (strncmp(arg, "--shuffle", 9) == 0) {
+			const char *suffix = arg + 9;
+			if (*suffix != '\0' && *suffix != '=') {
+				/* Reject --shufflefoo, --shuffle123, etc. */
+				if (err_msg) {
+					*err_msg = att_format_unknown_option(arg);
+					if (!*err_msg) {
+						*err_msg = att_strdup("error: allocation failure");
+					}
+				}
+				return 1;
+			}
 			out_opts->shuffle = true;
-			const char *value = arg + 9;
-			if (*value == '=') {
-				value++;
+			if (*suffix == '=') {
+				const char *value = suffix + 1;
 				if (!*value) {
 					if (err_msg) {
 						*err_msg = att_strdup("error: invalid seed value");
+					}
+					return 1;
+				}
+				/* Reject negative values (strtoul accepts them) */
+				if (*value == '-') {
+					if (err_msg) {
+						*err_msg = att_strdup("error: seed must be non-negative");
 					}
 					return 1;
 				}
@@ -327,6 +344,13 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 				if (!endptr || *endptr != '\0') {
 					if (err_msg) {
 						*err_msg = att_strdup("error: invalid seed value");
+					}
+					return 1;
+				}
+				/* Reject values that overflow unsigned int */
+				if (parsed > UINT_MAX) {
+					if (err_msg) {
+						*err_msg = att_strdup("error: seed value too large");
 					}
 					return 1;
 				}
