@@ -9,32 +9,32 @@
 
 static att_registry g_registry;
 
-static void att_registry_clear_error(att_registry* registry)
+static void att_registry_clear_error(att_registry *registry)
 {
 	if (registry && registry->last_error) {
-		free((void*)registry->last_error);
+		free((void *)registry->last_error);
 		registry->last_error = NULL;
 	}
 }
 
-att_registry* att_registry_get(void)
+att_registry *att_registry_get(void)
 {
 	return &g_registry;
 }
 
-const char* att_registry_error(void)
+const char *att_registry_error(void)
 {
 	return g_registry.last_error;
 }
 
-static void att_registry_cleanup_entries(att_registry* registry)
+static void att_registry_cleanup_entries(att_registry *registry)
 {
 	if (!registry || !registry->tests) {
 		return;
 	}
 	for (size_t i = 0; i < registry->count; ++i) {
-		const att_test_case* test = &registry->tests[i];
-		free((void*)test->fullname);
+		const att_test_case *test = &registry->tests[i];
+		free((void *)test->fullname);
 	}
 	free(registry->tests);
 	registry->tests = NULL;
@@ -49,10 +49,10 @@ static void att_registry_atexit(void)
 	g_registry.frozen = false;
 }
 
-static int att_registry_grow(att_registry* registry)
+static int att_registry_grow(att_registry *registry)
 {
 	size_t new_capacity = registry->capacity ? registry->capacity * 2 : 16;
-	void* block = realloc(registry->tests, new_capacity * sizeof(att_test_case));
+	void *block = realloc(registry->tests, new_capacity * sizeof(att_test_case));
 	if (!block) {
 		return -1;
 	}
@@ -61,9 +61,9 @@ static int att_registry_grow(att_registry* registry)
 	return 0;
 }
 
-int att_registry_add(const char* suite, const char* name, att_test_fn fn, const char* file, int line, const char** error)
+int att_registry_add(const char *suite, const char *name, att_test_fn fn, const char *file, int line, const char **error)
 {
-	att_registry* registry = &g_registry;
+	att_registry *registry = &g_registry;
 	if (registry->frozen) {
 		if (error) {
 			*error = "registry is frozen";
@@ -83,11 +83,11 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 	size_t fullname_len = suite_len + 1 + name_len;
 
 	for (size_t i = 0; i < registry->count; ++i) {
-		const att_test_case* existing = &registry->tests[i];
+		const att_test_case *existing = &registry->tests[i];
 		if (strcmp(existing->suite, suite) == 0 && strcmp(existing->name, name) == 0) {
 			att_registry_clear_error(registry);
 			size_t msg_len = fullname_len + sizeof("error: duplicate test name ''");
-			char* msg = malloc(msg_len);
+			char *msg = malloc(msg_len);
 			if (msg) {
 				snprintf(msg, msg_len, "error: duplicate test name '%s.%s'", suite, name);
 			}
@@ -108,7 +108,7 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 		}
 	}
 
-	char* fullname = malloc(fullname_len + 1);
+	char *fullname = malloc(fullname_len + 1);
 	if (!fullname) {
 		if (error) {
 			*error = "allocation failure";
@@ -120,7 +120,7 @@ int att_registry_add(const char* suite, const char* name, att_test_fn fn, const 
 	memcpy(fullname + suite_len + 1, name, name_len);
 	fullname[fullname_len] = '\0';
 
-	att_test_case* slot = &registry->tests[registry->count++];
+	att_test_case *slot = &registry->tests[registry->count++];
 	slot->suite = suite;
 	slot->name = name;
 	slot->fullname = fullname;
@@ -147,16 +147,15 @@ void att_registry_finalize(void)
 
 void att_registry_shuffle(unsigned int seed)
 {
-	att_registry* registry = &g_registry;
+	att_registry *registry = &g_registry;
 	if (registry->count < 2) {
 		return;
 	}
 
-	/* Simple LCG for deterministic shuffling. */
+	/* Fisher-Yates shuffle with glibc LCG (a=1103515245, c=12345, m=2^32) */
 	unsigned int next = seed;
 
 	for (size_t i = registry->count - 1; i > 0; --i) {
-		/* Generate a pseudo-random number. */
 		next = next * 1103515245 + 12345;
 		size_t j = (size_t)(next / 65536) % (i + 1);
 
@@ -166,13 +165,12 @@ void att_registry_shuffle(unsigned int seed)
 	}
 }
 
-
-void att_register_test(const char* suite, const char* name, att_test_fn fn, const char* file, int line)
+void att_register_test(const char *suite, const char *name, att_test_fn fn, const char *file, int line)
 {
 	att_registry_add(suite, name, fn, file, line, NULL);
 }
 
-void att_register_manual(const att_register_fn* fns, size_t count)
+void att_register_manual(const att_register_fn *fns, size_t count)
 {
 	if (!fns) {
 		return;

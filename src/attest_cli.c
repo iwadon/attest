@@ -475,8 +475,7 @@ void att_print_help(const char *program_name)
 	printf("  --filter=PATTERN        Run tests matching PATTERN (wildcards: * and ?)\n");
 	printf("                          Multiple patterns can be separated by ';'\n");
 	printf("                          Shorthand: 'Suite' -> 'Suite.*', '.Name' -> '*.Name'\n");
-	printf("  --shuffle[=SEED]        Randomize test order. An optional integer seed can be provided for reproducible shuffling.\n");
-	printf("                          (ja: --shuffle[=SEED] テストの実行順序をランダム化します。再現可能なシャッフル順序のために、整数のシードを任意で指定できます。)\n");
+	printf("  --shuffle[=SEED]        Randomize test order with optional seed for reproducibility\n");
 	printf("  --no-color              Disable colored output\n");
 	printf("  --format=FORMAT         Output format: default, tap, or junit\n");
 	printf("  --output=FILE           Write output to FILE (requires --format=junit)\n");
