@@ -6,6 +6,7 @@
 
 #include "attest/attest.h"
 #include "internal/attest_context.h"
+#include "internal/attest_internal.h"
 
 typedef struct {
 	int lhs;
@@ -760,6 +761,152 @@ TEST(Parallel, IndependentExecution)
 	static int counter = 0;
 	int local = ++counter;
 	EXPECT_GT(local, 0);
+}
+
+/* ========== Shuffle Tests ========== */
+
+TEST(Shuffle, CLIParseShuffleWithSeed)
+{
+	char *argv[] = { "test", "--shuffle=12345", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(0, result);
+	EXPECT_TRUE(opts.shuffle);
+	EXPECT_EQ(12345u, opts.shuffle_seed);
+	EXPECT_TRUE(err_msg == NULL);
+}
+
+TEST(Shuffle, CLIParseShuffleWithoutSeed)
+{
+	char *argv[] = { "test", "--shuffle", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(0, result);
+	EXPECT_TRUE(opts.shuffle);
+	/* Seed should be non-zero (time-based) */
+	EXPECT_TRUE(opts.shuffle_seed > 0);
+	EXPECT_TRUE(err_msg == NULL);
+}
+
+TEST(Shuffle, CLIParseShuffleInvalidSeed)
+{
+	char *argv[] = { "test", "--shuffle=abc", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, CLIParseShuffleEmptySeed)
+{
+	char *argv[] = { "test", "--shuffle=", NULL };
+	att_cli_options opts;
+	char *err_msg = NULL;
+	int result = att_cli_parse(2, argv, &opts, &err_msg);
+
+	EXPECT_EQ(1, result);
+	EXPECT_TRUE(err_msg != NULL);
+	free(err_msg);
+}
+
+TEST(Shuffle, SameSeedProducesSameOrder)
+{
+	/* Create a simple array to test shuffle algorithm */
+	size_t items[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	size_t first_order[10];
+	size_t second_order[10];
+
+	/* Shuffle with seed 42 and record order */
+	unsigned int seed = 42;
+	unsigned int next = seed;
+	for (size_t i = 9; i > 0; --i) {
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+		size_t temp = items[i];
+		items[i] = items[j];
+		items[j] = temp;
+	}
+	memcpy(first_order, items, sizeof(items));
+
+	/* Reset and shuffle again with same seed */
+	for (size_t i = 0; i < 10; ++i)
+		items[i] = i;
+
+	next = seed;
+	for (size_t i = 9; i > 0; --i) {
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+		size_t temp = items[i];
+		items[i] = items[j];
+		items[j] = temp;
+	}
+	memcpy(second_order, items, sizeof(items));
+
+	/* Verify same seed produces same order */
+	EXPECT_EQ(0, memcmp(first_order, second_order, sizeof(first_order)));
+}
+
+TEST(Shuffle, DifferentSeedsProduceDifferentOrder)
+{
+	size_t items1[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	size_t items2[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+	/* Shuffle with seed 42 */
+	unsigned int next = 42;
+	for (size_t i = 9; i > 0; --i) {
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+		size_t temp = items1[i];
+		items1[i] = items1[j];
+		items1[j] = temp;
+	}
+
+	/* Shuffle with seed 99 */
+	next = 99;
+	for (size_t i = 9; i > 0; --i) {
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+		size_t temp = items2[i];
+		items2[i] = items2[j];
+		items2[j] = temp;
+	}
+
+	/* Verify different seeds produce different order */
+	EXPECT_NE(0, memcmp(items1, items2, sizeof(items1)));
+}
+
+TEST(Shuffle, AllElementsPreserved)
+{
+	size_t items[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	bool found[10] = { false };
+
+	/* Shuffle with arbitrary seed */
+	unsigned int next = 12345;
+	for (size_t i = 9; i > 0; --i) {
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+		size_t temp = items[i];
+		items[i] = items[j];
+		items[j] = temp;
+	}
+
+	/* Mark all found elements */
+	for (size_t i = 0; i < 10; ++i) {
+		ASSERT_LT(items[i], 10u);
+		found[items[i]] = true;
+	}
+
+	/* Verify all elements are present */
+	for (size_t i = 0; i < 10; ++i) {
+		EXPECT_TRUE(found[i]);
+	}
 }
 
 int main(int argc, char **argv)
