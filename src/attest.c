@@ -437,6 +437,10 @@ int attest_main(int argc, char **argv)
 
 	if (opts.shuffle) {
 		att_registry_shuffle(opts.shuffle_seed);
+		if (opts.format == ATT_OUTPUT_DEFAULT) {
+			printf("Note: Randomizing tests' orders with a seed of %u.\n", opts.shuffle_seed);
+			printf("Re-run this test with --shuffle=%u to reproduce this order.\n\n", opts.shuffle_seed);
+		}
 	}
 
 	if (opts.list_only) {
