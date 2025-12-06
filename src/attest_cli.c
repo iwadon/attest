@@ -340,7 +340,7 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 					return 1;
 				}
 				char *endptr = NULL;
-				unsigned long parsed = strtoul(value, &endptr, 10);
+				unsigned long long parsed = strtoull(value, &endptr, 10);
 				if (!endptr || *endptr != '\0') {
 					if (err_msg) {
 						*err_msg = att_strdup("error: invalid seed value");
