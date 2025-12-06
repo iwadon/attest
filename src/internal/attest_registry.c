@@ -145,6 +145,28 @@ void att_registry_finalize(void)
 	g_registry.frozen = true;
 }
 
+void att_registry_shuffle(unsigned int seed)
+{
+	att_registry* registry = &g_registry;
+	if (registry->count < 2) {
+		return;
+	}
+
+	/* Simple LCG for deterministic shuffling. */
+	unsigned int next = seed;
+
+	for (size_t i = registry->count - 1; i > 0; --i) {
+		/* Generate a pseudo-random number. */
+		next = next * 1103515245 + 12345;
+		size_t j = (size_t)(next / 65536) % (i + 1);
+
+		att_test_case temp = registry->tests[i];
+		registry->tests[i] = registry->tests[j];
+		registry->tests[j] = temp;
+	}
+}
+
+
 void att_register_test(const char* suite, const char* name, att_test_fn fn, const char* file, int line)
 {
 	att_registry_add(suite, name, fn, file, line, NULL);

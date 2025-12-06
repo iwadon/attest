@@ -435,6 +435,10 @@ int attest_main(int argc, char **argv)
 	att_registry_finalize();
 	registry_locked = true;
 
+	if (opts.shuffle) {
+		att_registry_shuffle(opts.shuffle_seed);
+	}
+
 	if (opts.list_only) {
 		att_print_list(registry, &opts);
 		exit_code = 0;

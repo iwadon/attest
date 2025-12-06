@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(_SC_NPROCESSORS_ONLN)
 #include <unistd.h>
@@ -177,6 +178,8 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 	out_opts->list_only = false;
 	out_opts->help_requested = false;
 	out_opts->color_enabled = true;
+	out_opts->shuffle = false;
+	out_opts->shuffle_seed = 0;
 	out_opts->filter_raw = NULL;
 	out_opts->filters = NULL;
 	out_opts->filter_count = 0;
@@ -305,6 +308,31 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 #endif
 			} else {
 				out_opts->jobs = (int)parsed;
+			}
+			continue;
+		}
+		if (strncmp(arg, "--shuffle", 9) == 0) {
+			out_opts->shuffle = true;
+			const char *value = arg + 9;
+			if (*value == '=') {
+				value++;
+				if (!*value) {
+					if (err_msg) {
+						*err_msg = att_strdup("error: invalid seed value");
+					}
+					return 1;
+				}
+				char *endptr = NULL;
+				unsigned long parsed = strtoul(value, &endptr, 10);
+				if (!endptr || *endptr != '\0') {
+					if (err_msg) {
+						*err_msg = att_strdup("error: invalid seed value");
+					}
+					return 1;
+				}
+				out_opts->shuffle_seed = (unsigned int)parsed;
+			} else {
+				out_opts->shuffle_seed = (unsigned int)time(NULL);
 			}
 			continue;
 		}
@@ -447,6 +475,8 @@ void att_print_help(const char *program_name)
 	printf("  --filter=PATTERN        Run tests matching PATTERN (wildcards: * and ?)\n");
 	printf("                          Multiple patterns can be separated by ';'\n");
 	printf("                          Shorthand: 'Suite' -> 'Suite.*', '.Name' -> '*.Name'\n");
+	printf("  --shuffle[=SEED]        Randomize test order. An optional integer seed can be provided for reproducible shuffling.\n");
+	printf("                          (ja: --shuffle[=SEED] テストの実行順序をランダム化します。再現可能なシャッフル順序のために、整数のシードを任意で指定できます。)\n");
 	printf("  --no-color              Disable colored output\n");
 	printf("  --format=FORMAT         Output format: default, tap, or junit\n");
 	printf("  --output=FILE           Write output to FILE (requires --format=junit)\n");

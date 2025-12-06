@@ -132,6 +132,12 @@ TEST_F(BufferFixture, Initialization) {
 
 # Set timeout for each test (in milliseconds)
 ./build/attest_selftest --timeout-ms=5000
+
+# Shuffle test execution order
+./build/attest_selftest --shuffle
+
+# Shuffle with a specific seed for reproducible order
+./build/attest_selftest --shuffle=12345
 ```
 
 ### Manual Timeout Verification

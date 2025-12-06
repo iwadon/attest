@@ -119,6 +119,8 @@ typedef struct att_cli_options {
 	bool list_only;
 	bool help_requested;
 	bool color_enabled;
+	bool shuffle;
+	unsigned int shuffle_seed;
 	const char *filter_raw;
 	char **filters;
 	size_t filter_count;
@@ -154,6 +156,7 @@ typedef struct att_worker att_worker;
 
 att_registry *att_registry_get(void);
 void att_registry_finalize(void);
+void att_registry_shuffle(unsigned int seed);
 int att_registry_add(const char *suite, const char *name, att_test_fn fn, const char *file, int line, const char **error);
 const char *att_registry_error(void);
 
