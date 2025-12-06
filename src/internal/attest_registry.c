@@ -152,7 +152,7 @@ void att_registry_shuffle(unsigned int seed)
 		return;
 	}
 
-	/* Fisher-Yates shuffle with glibc LCG (a=1103515245, c=12345, m=2^32) */
+	/* Fisher-Yates shuffle with POSIX LCG (a=1103515245, c=12345, m=2^32) */
 	unsigned int next = seed;
 
 	for (size_t i = registry->count - 1; i > 0; --i) {
