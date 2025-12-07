@@ -171,7 +171,7 @@ struct att_info_scope {
 		void *: att_handle_compare_pointer,                                                      \
 		const char *: att_handle_compare_pointer,                                                \
 		char *: att_handle_compare_pointer,                                                      \
-		default: att_handle_compare_pointer)(op, assertion_text, __FILE__, __LINE__, fatal, lhs_expr, rhs_expr, (lhs_value), (rhs_value))
+		default: att_handle_compare_signed)(op, assertion_text, __FILE__, __LINE__, fatal, lhs_expr, rhs_expr, (lhs_value), (rhs_value))
 
 #define ASSERT_EQ(lhs, rhs)                                                                            \
 	do {                                                                                               \
