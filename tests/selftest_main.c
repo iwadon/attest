@@ -279,8 +279,10 @@ TEST(Assert, NearRelAssertFatal)
 {
 	/* Test that ASSERT_NEAR_REL is fatal */
 	att_result result;
+	att_capture_begin();
 	att_status status = att_run_subtest("fatal_nearrel",
 		(void (*)(void *))near_rel_fail_large_diff_subtest, NULL, &result);
+	att_capture_end(NULL);
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	EXPECT_EQ(1, result.failed);
 	EXPECT_EQ(0, result.fatal_failures);
@@ -444,8 +446,10 @@ TEST(Assert, UlpEqAssertFatal)
 {
 	/* Test that ASSERT_ULP_EQ is fatal */
 	att_result result;
+	att_capture_begin();
 	att_status status = att_run_subtest("fatal_ulp",
 		(void (*)(void *))ulp_exceed_threshold_subtest, NULL, &result);
+	att_capture_end(NULL);
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	EXPECT_EQ(1, result.failed);
 	EXPECT_EQ(0, result.fatal_failures);
@@ -497,7 +501,9 @@ TEST(Skip, SubtestRecordsSkip)
 TEST(Subtest, ReportsFailures)
 {
 	att_result result;
+	att_capture_begin();
 	att_status status = att_run_subtest("nonfatal", att_subtest_nonfatal, NULL, &result);
+	att_capture_end(NULL);
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	ASSERT_EQ(1, result.failed);
 	EXPECT_EQ(1, result.nonfatal_failures);
@@ -506,7 +512,9 @@ TEST(Subtest, ReportsFailures)
 TEST(Subtest, RecordsAbort)
 {
 	att_result result;
+	att_capture_begin();
 	att_status status = att_run_subtest("fatal", att_subtest_fatal, NULL, &result);
+	att_capture_end(NULL);
 	ASSERT_EQ(ATT_STATUS_ABORTED, status);
 	EXPECT_EQ(1, result.fatal_failures);
 }
@@ -519,7 +527,9 @@ TEST(Subtest, ExpectFailsMacroPasses)
 TEST(Subtest, ExpectFailsMacroRegistersFailure)
 {
 	att_result result;
+	att_capture_begin();
 	att_status status = att_run_subtest("macro mismatch", att_macro_mismatch, NULL, &result);
+	att_capture_end(NULL);
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	EXPECT_EQ(1, result.nonfatal_failures);
 }
