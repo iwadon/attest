@@ -239,6 +239,23 @@ struct att_info_scope {
 		att_handle_truth("EXPECT_FALSE(" #expr ")", __FILE__, __LINE__, false, !!(expr), false, #expr); \
 	} while (0)
 
+#define ASSERT_NULL(ptr)                                                                                                       \
+	do {                                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_EQ, "ASSERT_NULL(" #ptr ")", __FILE__, __LINE__, true, #ptr, "NULL", (ptr), NULL); \
+	} while (0)
+#define EXPECT_NULL(ptr)                                                                                                        \
+	do {                                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_EQ, "EXPECT_NULL(" #ptr ")", __FILE__, __LINE__, false, #ptr, "NULL", (ptr), NULL); \
+	} while (0)
+#define ASSERT_NOT_NULL(ptr)                                                                                                       \
+	do {                                                                                                                           \
+		att_handle_compare_pointer(ATT_COMP_NE, "ASSERT_NOT_NULL(" #ptr ")", __FILE__, __LINE__, true, #ptr, "NULL", (ptr), NULL); \
+	} while (0)
+#define EXPECT_NOT_NULL(ptr)                                                                                                        \
+	do {                                                                                                                            \
+		att_handle_compare_pointer(ATT_COMP_NE, "EXPECT_NOT_NULL(" #ptr ")", __FILE__, __LINE__, false, #ptr, "NULL", (ptr), NULL); \
+	} while (0)
+
 #define ATT_ASSERT(expr, ...)                                                             \
 	do {                                                                                  \
 		att_handle_custom_assert(__FILE__, __LINE__, true, !!(expr), #expr, __VA_ARGS__); \
