@@ -78,28 +78,25 @@ The project uses CMake with an out-of-source build strategy:
   - Files: snake_case (`attest_assert.c`, `attest_internal.h`)
 - **Line length**: Target 100 columns for code
 
-## Specifications
+## Documentation
 
-The project maintains detailed specification documents in `docs/`:
+The project documentation is organized in `docs/`:
 
-- **P0 (Implemented)**: `docs/attest_p0_spec.md` - Core functionality (C11, basic assertions, CLI filtering, exit codes, fixtures)
-- **P1 (Implemented)**: `docs/attest_p1_spec.md` - TAP/JUnit output, timeouts, test skipping, parallel execution
-- **P1+ (Future)**: `docs/attest_p1_plus_spec.md` - Long-term goals (C89/90 support, advanced filtering, performance optimizations)
-
-**Note**: The specification documents reflect the original planning phases. The current implementation includes all P0 and P1 features, though the specs may describe them as planned work.
-
-When modifying behavior, reference the relevant spec section in commit messages. Tag TODOs with the planned stage: `// TODO(P1+): implement advanced filtering`
+- **`docs/api.md`**: Complete API reference (assertions, macros, CLI options)
+- **`docs/guide.md`**: User guide with usage patterns and examples
+- **`docs/internals.md`**: Architecture, platform support, design decisions
+- **`docs/roadmap.md`**: Future plans (P1+)
 
 ## Development Workflow
 
 When implementing new features:
 
-1. Check the relevant spec document (`docs/attest_p0_spec.md` for current scope)
-2. Add self-tests in `tests/selftest_main.c` that exercise the new functionality
-3. For bug fixes, add a regression test that reproduces the issue before fixing
-4. Run the full test suite: `./build/attest_selftest`
-5. Verify CLI behavior manually: `./build/attest_selftest --list`, `./build/attest_selftest --filter=Suite.*`
-6. Format code with `clang-format -i` before committing
+1. Add self-tests in `tests/selftest_main.c` that exercise the new functionality
+2. For bug fixes, add a regression test that reproduces the issue before fixing
+3. Run the full test suite: `./build/attest_selftest`
+4. Verify CLI behavior manually: `./build/attest_selftest --list`, `./build/attest_selftest --filter=Suite.*`
+5. Format code with `clang-format -i` before committing
+6. Tag TODOs with the planned stage: `// TODO(P1+): implement advanced filtering`
 
 ## Exit Codes
 
