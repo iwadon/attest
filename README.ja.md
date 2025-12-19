@@ -110,9 +110,16 @@ TEST_F(BufferFixture, Initialization) {
 
 - `ASSERT_MEMEQ(ptr1, ptr2, size)` / `EXPECT_MEMEQ(ptr1, ptr2, size)` - メモリの等価性
 
+### ポインタアサーション
+
+- `ASSERT_NULL(ptr)` / `EXPECT_NULL(ptr)` - ポインタがNULL
+- `ASSERT_NOT_NULL(ptr)` / `EXPECT_NOT_NULL(ptr)` - ポインタがNULLでない
+
 ### 浮動小数点アサーション
 
-- `ASSERT_NEAR(a, b, epsilon)` / `EXPECT_NEAR(a, b, epsilon)` - 許容誤差を持つ浮動小数点比較
+- `ASSERT_NEAR(a, b, epsilon)` / `EXPECT_NEAR(a, b, epsilon)` - 絶対誤差: `|a - b| <= epsilon`
+- `ASSERT_NEAR_REL(a, b, rel_eps)` / `EXPECT_NEAR_REL(a, b, rel_eps)` - 相対誤差: `|a - b| <= rel_eps * max(|a|, |b|)`
+- `ASSERT_ULP_EQ(a, b, max_ulp)` / `EXPECT_ULP_EQ(a, b, max_ulp)` - ULP距離比較
 
 ## コマンドラインオプション
 

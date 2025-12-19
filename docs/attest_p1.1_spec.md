@@ -8,12 +8,43 @@ This document defines the feature extensions for the P1.1 stage of attest. It as
 
 ### 1.1 Relative Error and ULP Comparison
 
-**Status: Not Implemented**
+**Status: Implemented**
 
-To provide more robust floating-point comparisons, the following macros will be introduced:
+To provide more robust floating-point comparisons, the following macros are available:
 
-- `*_NEAR_REL(a, b, rel_eps)`: Asserts that two floating-point numbers are close to each other within a relative error margin.
-- `*_ULP_EQ(a, b, max_ulp)`: Asserts that two floating-point numbers are equal within a specified ULP (Units in the Last Place) distance.
+- `ASSERT_NEAR_REL(a, b, rel_eps)` / `EXPECT_NEAR_REL(a, b, rel_eps)`: Asserts that two floating-point numbers are close to each other within a relative error margin.
+- `ASSERT_ULP_EQ(a, b, max_ulp)` / `EXPECT_ULP_EQ(a, b, max_ulp)`: Asserts that two floating-point numbers are equal within a specified ULP (Units in the Last Place) distance.
+
+#### NEAR_REL Usage
+
+```c
+// Relative error comparison: |a - b| <= rel_eps * max(|a|, |b|)
+EXPECT_NEAR_REL(100.0, 101.0, 0.02);  // passes (1% difference, 2% tolerance)
+EXPECT_NEAR_REL(1e10, 1e10 + 1e8, 0.02);  // passes (large values)
+ASSERT_NEAR_REL(-1000.0, -1005.0, 0.01);  // passes (negative values)
+```
+
+Special cases:
+- If both values are near zero (< 1e-15), uses absolute comparison with rel_eps as threshold
+- NaN inputs always fail
+- ±Infinity values must match exactly (same sign)
+- Negative rel_eps fails the assertion
+
+#### ULP_EQ Usage
+
+```c
+// ULP (Units in Last Place) comparison
+EXPECT_ULP_EQ(1.0, 1.0, 0);  // exact match
+EXPECT_ULP_EQ(1.0, nextafter(1.0, 2.0), 1);  // 1 ULP apart
+ASSERT_ULP_EQ(0.0, -0.0, 0);  // +0 and -0 are 0 ULPs apart
+```
+
+Special cases:
+- Handles sign transitions correctly (e.g., smallest positive vs smallest negative)
+- Works with denormal numbers
+- NaN inputs always fail
+- ±Infinity must match exactly
+- Negative max_ulp fails the assertion
 
 ---
 

@@ -110,9 +110,16 @@ TEST_F(BufferFixture, Initialization) {
 
 - `ASSERT_MEMEQ(ptr1, ptr2, size)` / `EXPECT_MEMEQ(ptr1, ptr2, size)` - Memory equality
 
+### Pointer Assertions
+
+- `ASSERT_NULL(ptr)` / `EXPECT_NULL(ptr)` - Pointer is NULL
+- `ASSERT_NOT_NULL(ptr)` / `EXPECT_NOT_NULL(ptr)` - Pointer is not NULL
+
 ### Floating-Point Assertions
 
-- `ASSERT_NEAR(a, b, epsilon)` / `EXPECT_NEAR(a, b, epsilon)` - Floating-point comparison with tolerance
+- `ASSERT_NEAR(a, b, epsilon)` / `EXPECT_NEAR(a, b, epsilon)` - Absolute error: `|a - b| <= epsilon`
+- `ASSERT_NEAR_REL(a, b, rel_eps)` / `EXPECT_NEAR_REL(a, b, rel_eps)` - Relative error: `|a - b| <= rel_eps * max(|a|, |b|)`
+- `ASSERT_ULP_EQ(a, b, max_ulp)` / `EXPECT_ULP_EQ(a, b, max_ulp)` - ULP distance comparison
 
 ## Command-Line Options
 
