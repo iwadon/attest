@@ -1,42 +1,64 @@
 ---
-description: Save session state and generate continuation prompt
+description: Save session state and generate continuation prompt (project)
 ---
 
-現在のセッション状態を保存し、次回セッション用のプロンプトを生成します。
+Save current session state and generate prompt for next session.
 
-## 実行内容
+## CRITICAL: Verify Before Saving
 
-1. `.claude/session-state.md`に以下を保存:
-   - 現在のタスク概要
-   - 完了した作業（TodoListから）
-   - 次に実行すべきタスク
-   - 重要なコンテキスト（ファイルパス、エラーメッセージなど）
-   - 実行中のsubagentタスク（あれば）
+**Before writing session-state.md, you MUST verify the actual state:**
 
-2. 次回セッション用プロンプトを生成:
-   - 簡潔で明確（200-500文字）
-   - すぐに作業再開できる形式
-   - 必要なコンテキストを全て含む
-
-3. ユーザーに表示:
-   ```
-   ## セッション状態を保存しました
-
-   **次回セッション用プロンプト:**
-   [コピー可能なプロンプト]
-
-   **手順:**
-   1. `/clear` を実行
-   2. 上記プロンプトを貼り付け
+1. **Check git status and recent commits**:
+   ```bash
+   git log -3 --oneline
+   git log -1 --stat
    ```
 
-## 使用タイミング
+2. **For each "Next Step" you plan to write**:
+   - Search the codebase to confirm it's NOT already implemented
+   - Use `grep` or `Glob` to find existing implementations
+   - If found, move it to "Completed Work" instead
 
-- コンテキストが少なくなってきた時
-- 大きなタスクの区切りの良いポイント
-- エラーで詰まった時（状態を保存して再開）
+3. **Run tests** to confirm current state:
+   ```bash
+   ./build/attest_selftest 2>&1 | tail -5
+   ```
 
-## ヒント
+This prevents stale/incorrect session state that wastes time in the next session.
 
-Subagent戦略（`/implement-with-agent`）を使えば、コンテキスト消費を大幅削減でき、
-このコマンドを使う頻度を減らせます。
+## What It Does
+
+1. Save to `.claude/session-state.md`:
+   - Current task summary
+   - Completed work (verified against git commits)
+   - Next tasks to execute (verified NOT already done)
+   - Important context (file paths, error messages, etc.)
+   - Running subagent tasks (if any)
+
+2. Generate continuation prompt:
+   - Concise and clear (200-500 chars)
+   - Ready to resume work immediately
+   - Contains all necessary context
+
+3. Display to user:
+   ```
+   ## Session State Saved
+
+   **Continuation prompt for next session:**
+   [Copy-pasteable prompt]
+
+   **Steps:**
+   1. Run `/clear`
+   2. Paste the above prompt
+   ```
+
+## When to Use
+
+- When context is running low
+- At good breakpoints in large tasks
+- When stuck on errors (save state and resume)
+
+## Tip
+
+Use subagent strategy (`/implement-with-agent`) to significantly reduce context consumption
+and minimize need for this command.

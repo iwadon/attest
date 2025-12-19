@@ -1,108 +1,99 @@
 ---
-description: Implement feature using subagent to minimize context consumption
+description: Implement feature using subagent to minimize context consumption (project)
 argument-hint: <implementation request>
 ---
 
-## ユーザー要求
+## User Request
 
 $ARGUMENTS
 
 ---
 
-**重要**: 上記のユーザー要求が空の場合は、以下を実行してください:
-- ユーザーに「どのような機能を実装したいですか? 具体的な要求内容を教えてください」と質問する
-- 実装の詳細(対象ファイル、機能の概要など)を確認してから作業を開始する
-- この時点では**タスク分析を行わず、実行手順にも進まない**こと
+**IMPORTANT**: If the user request is empty, ask the user for specific requirements before proceeding.
 
 ---
 
-あなたは**アーキテクト**として振る舞い、実装の詳細はsubagentに委譲してください:
+You act as an **Architect** and delegate implementation to subagents:
 
-## 実行手順
+## Prerequisites Check
 
-1. **タスク分析**(親Claudeが実行):
-   - 上記のユーザー要求を理解
-   - 高レベルのアプローチを決定
-   - 必要なファイル/関数を特定
-   - 実装を複数の独立したサブタスクに分割
+Before starting implementation:
 
-2. **Subagentに委譲**(コンテキスト分離):
-   - 各サブタスクについて、ビルトインの`general-purpose`サブエージェントを使用して実装を委譲
-   - 各サブエージェントには詳細な実装指示を与える
-   - サブエージェントが自律的に作業(ファイル読取、検索、実装)
-   - 複数のサブタスクは順次実行(並列実行が必要な場合は明示的に指示)
+1. **Identify dependencies**: List all features required for the task
+2. **Check availability**: Verify each dependency is already implemented
+3. **Report blockers**: If critical features are missing, STOP and report:
+   - What feature is needed
+   - Why it's needed for this task
+   - Recommended implementation order
 
-3. **結果レビュー**(親Claudeが実行):
-   - 各サブエージェントからの簡潔なサマリーを受取
-   - 必要に応じて追加指示
-   - 全体を統合してユーザーに報告
+**Do NOT create workarounds** for missing features without explicit user approval.
 
-## Subagentへの委譲方法
+## Workflow
 
-各サブタスクについて、以下の形式でビルトインのサブエージェントを呼び出してください:
+1. **Analyze** the user request and split into subtasks
+2. **Select appropriate subagent** for each subtask:
+   - `refactoring` (Sonnet) - Multi-file renames, structural changes
+   - `implementation` (Sonnet) - New features, complex algorithms
+   - `quick-fix` (Haiku) - Comments, error messages, small fixes (1-3 files)
+   - `research` (Haiku) - Code investigation, pattern search
+3. **Delegate** with detailed instructions
+4. **Review** results and integrate
 
-```
-ビルトインの`general-purpose`サブエージェントを使用して、以下のタスクを実行してください:
-
-**ユーザーからの元の要求**: [ユーザー要求を要約]
-
-**このサブタスクの目的**: [具体的な実装内容]
-
-**要件**:
-- [要件1]
-- [要件2]
-
-**実装場所**: [ファイルパス、関数名など]
-
-**参考情報**: [既存の類似コード、関連ファイル]
-
-**期待する結果**:
-- 実装の概要サマリー(500文字以内)
-- 変更したファイルのリスト
-- テスト結果(成功/失敗)
-- 発生した問題や注意点
-
-**重要**: 詳細なコードやファイル内容全体は返さないこと。サマリーのみ返すこと。
-```
-
-## 利点
-
-- ✅ 親セッションのコンテキスト消費を最小化
-- ✅ 各subagentが独立したコンテキストウィンドウで作業
-- ✅ 大規模な実装でもセッションが持続
-- ✅ 複数の独立タスクを段階的に実行可能
-- ✅ 失敗したタスクを再実行しても親セッションに影響なし
-
-## 注意事項
-
-- Claude Codeのビルトイン`general-purpose`サブエージェントを使用します
-- 特定のタスクに特化したカスタムサブエージェントがある場合は、そちらを優先的に使用してください
-
-## 使用例
+### Delegation Format
 
 ```
-/implement-with-agent enumサポートを全パイプライン(CST→HIR→MIR→VM)に実装してください
+Use the `[agent-name]` subagent to execute the following task:
 
-親Claude: タスクを4つに分割しました:
-  1. CST parser拡張
-  2. HIR lowering
-  3. MIR lowering
-  4. VM実装
+**Original user request**: [Summary]
 
-それでは、各タスクをsubagentに委譲して実装します。
+**Subtask objective**: [Specific details]
 
----
+**Requirements**:
+- [Requirement 1]
+- [Requirement 2]
 
-ビルトインの`general-purpose`サブエージェントを使用して、以下のタスクを実行してください:
+**Implementation location**: [Files/functions]
 
-**このサブタスクの目的**: CST parserにenum構文のサポートを追加
+**Reference info**: [Similar code/related files]
 
-**要件**:
-- enum宣言の構文解析
-- enum値の解析
-- 既存のtype定義との統合
+**CRITICAL**: Apply changes using Edit/Write tools directly. NO patch files or scripts.
 
-**実装場所**: src/parser/cst.rs
+**Expected results**:
+- Summary (max 500 chars)
+- Modified files (with "✅ Applied via Edit/Write")
+- Test results
+- Verification: "✅ Direct edits completed"
+```
 
-[各サブエージェントが順次実行され、結果を統合]
+## Verification
+
+After each subagent completes, check for "✅ Direct edits completed". If patch files/scripts were created instead, reject and re-delegate with stronger emphasis on direct editing.
+
+## Example Usage
+
+**New feature:**
+```
+/implement-with-agent Add floating-point assertion support
+
+→ Use `implementation` agent
+→ Provide requirements, target files, reference code
+→ Agent implements, tests, reports with "✅ Direct edits completed"
+```
+
+**Multi-file refactoring:**
+```
+/implement-with-agent Rename att_handle_compare to att_compare_values
+
+→ Use `refactoring` agent
+→ Agent searches all files, updates declarations/call sites
+→ Verifies build and tests pass
+```
+
+**Research + Fix:**
+```
+/implement-with-agent Find and fix simple TODOs
+
+→ Step 1: Use `research` agent to find/categorize TODOs
+→ Step 2: Use `quick-fix` agent to fix simple ones
+→ Execute sequentially
 ```
