@@ -9,6 +9,7 @@ This document outlines future plans for attest beyond the current implementation
 | P0 | Complete | Core assertions, CLI, exit codes, subtests, output capture |
 | P1 | Complete | Fixtures, skip API, TAP/JUnit output, timeouts, parallel execution |
 | P1.1 | Complete | `NEAR_REL`, `ULP_EQ`, `SCOPED_INFO` |
+| P1.2 | Complete | Negative filters (`--filter=-Pattern`) |
 
 ---
 
@@ -32,7 +33,7 @@ ATT_EXPECT(predicate_fn, context);
 
 ### Advanced Filtering
 
-- Negative filters: `--filter=-Slow.*`
+- ~~Negative filters: `--filter=-Slow.*`~~ (Implemented in P1.2)
 - Regex support: `--filter=/Math\\..*Add/`
 - Tag-based filtering: `[slow]`, `[integration]`
 

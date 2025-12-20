@@ -124,6 +124,8 @@ typedef struct att_cli_options {
 	const char *filter_raw;
 	char **filters;
 	size_t filter_count;
+	char **negative_filters;
+	size_t negative_filter_count;
 	att_output_format format;
 	char *output_path;
 	int timeout_ms;

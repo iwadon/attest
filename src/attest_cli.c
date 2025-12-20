@@ -113,8 +113,11 @@ static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, cha
 	}
 
 	char **filters = calloc(segments, sizeof(char *));
-	if (!filters) {
+	char **negative_filters = calloc(segments, sizeof(char *));
+	if (!filters || !negative_filters) {
 		free(raw_copy);
+		free(filters);
+		free(negative_filters);
 		if (err_msg) {
 			*err_msg = att_strdup("error: allocation failure");
 		}
@@ -122,6 +125,7 @@ static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, cha
 	}
 
 	size_t index = 0;
+	size_t neg_index = 0;
 	const char *head = raw;
 	while (true) {
 		const char *delim = strchr(head, ';');
@@ -133,7 +137,12 @@ static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, cha
 			}
 			goto fail;
 		}
-		char *normalized = att_normalize_pattern(slice);
+
+		/* Check if this is a negative filter (starts with '-') */
+		bool is_negative = (slice[0] == '-' && slice[1] != '\0');
+		const char *pattern_start = is_negative ? slice + 1 : slice;
+
+		char *normalized = att_normalize_pattern(pattern_start);
 		free(slice);
 		if (!normalized) {
 			if (err_msg) {
@@ -141,7 +150,13 @@ static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, cha
 			}
 			goto fail;
 		}
-		filters[index++] = normalized;
+
+		if (is_negative) {
+			negative_filters[neg_index++] = normalized;
+		} else {
+			filters[index++] = normalized;
+		}
+
 		if (!delim) {
 			break;
 		}
@@ -151,13 +166,19 @@ static int att_parse_filter_patterns(const char *raw, att_cli_options *opts, cha
 	opts->filter_raw = raw_copy;
 	opts->filters = filters;
 	opts->filter_count = index;
+	opts->negative_filters = negative_filters;
+	opts->negative_filter_count = neg_index;
 	return 0;
 
 fail:
 	for (size_t i = 0; i < index; ++i) {
 		free(filters[i]);
 	}
+	for (size_t i = 0; i < neg_index; ++i) {
+		free(negative_filters[i]);
+	}
 	free(filters);
+	free(negative_filters);
 	free(raw_copy);
 	return -1;
 }
@@ -183,6 +204,8 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 	out_opts->filter_raw = NULL;
 	out_opts->filters = NULL;
 	out_opts->filter_count = 0;
+	out_opts->negative_filters = NULL;
+	out_opts->negative_filter_count = 0;
 	out_opts->format = ATT_OUTPUT_DEFAULT;
 	out_opts->output_path = NULL;
 	out_opts->timeout_ms = 0;
@@ -433,15 +456,39 @@ bool att_filter_match(const att_test_case *test, const att_cli_options *opts)
 	if (!test || !opts) {
 		return false;
 	}
+
+	/* Step 1: Check positive filters */
+	bool positive_match = false;
 	if (!opts->filters || opts->filter_count == 0) {
-		return true;
-	}
-	for (size_t i = 0; i < opts->filter_count; ++i) {
-		if (att_match_simple(opts->filters[i], test->fullname)) {
-			return true;
+		/* No positive filters means all tests are candidates */
+		positive_match = true;
+	} else {
+		/* Check if test matches any positive filter */
+		for (size_t i = 0; i < opts->filter_count; ++i) {
+			if (att_match_simple(opts->filters[i], test->fullname)) {
+				positive_match = true;
+				break;
+			}
 		}
 	}
-	return false;
+
+	/* If test doesn't match positive filters, exclude it */
+	if (!positive_match) {
+		return false;
+	}
+
+	/* Step 2: Check negative filters */
+	if (opts->negative_filters && opts->negative_filter_count > 0) {
+		for (size_t i = 0; i < opts->negative_filter_count; ++i) {
+			if (att_match_simple(opts->negative_filters[i], test->fullname)) {
+				/* Test matches a negative filter, exclude it */
+				return false;
+			}
+		}
+	}
+
+	/* Test passed both positive and negative filters */
+	return true;
 }
 
 void att_print_list(const att_registry *registry, const att_cli_options *opts)
@@ -469,6 +516,12 @@ void att_cli_dispose(att_cli_options *opts)
 		}
 		free(opts->filters);
 	}
+	if (opts->negative_filters) {
+		for (size_t i = 0; i < opts->negative_filter_count; ++i) {
+			free(opts->negative_filters[i]);
+		}
+		free(opts->negative_filters);
+	}
 	if (opts->filter_raw) {
 		free((void *)opts->filter_raw);
 	}
@@ -477,6 +530,8 @@ void att_cli_dispose(att_cli_options *opts)
 	}
 	opts->filters = NULL;
 	opts->filter_count = 0;
+	opts->negative_filters = NULL;
+	opts->negative_filter_count = 0;
 	opts->filter_raw = NULL;
 	opts->list_only = false;
 	opts->help_requested = false;
@@ -499,6 +554,7 @@ void att_print_help(const char *program_name)
 	printf("  --filter=PATTERN        Run tests matching PATTERN (wildcards: * and ?)\n");
 	printf("                          Multiple patterns can be separated by ';'\n");
 	printf("                          Shorthand: 'Suite' -> 'Suite.*', '.Name' -> '*.Name'\n");
+	printf("                          Prefix with '-' to exclude: 'Math.*;-Math.Slow*'\n");
 	printf("  --shuffle[=SEED]        Randomize test order with optional seed for reproducibility\n");
 	printf("  --no-color              Disable colored output\n");
 	printf("  --format=FORMAT         Output format: default, tap, or junit\n");

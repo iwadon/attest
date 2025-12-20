@@ -257,6 +257,15 @@ int main(int argc, char **argv) {
 - `.Name` — shorthand for `*.Name`
 - `*`, `?` — wildcards
 - `Pattern1;Pattern2` — multiple patterns (OR logic)
+- `-Pattern` — negative filter: exclude matching tests
+- `Pattern1;-Pattern2` — combine inclusions and exclusions (run Pattern1 except Pattern2)
+
+**Examples:**
+- `--filter=Math.*` — run all tests in Math suite
+- `--filter='-Slow*'` — run all tests except those starting with "Slow"
+- `--filter='Math.*;-Math.Slow*'` — run all Math tests except Math.Slow* tests
+- `--filter='*.Fast'` — run Fast tests from any suite
+- `--filter='*.Fast;-Skip.*'` — run Fast tests except Skip suite
 
 ---
 
