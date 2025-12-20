@@ -56,4 +56,4 @@ int main(int argc, char **argv) {
 
 ## ライセンス
 
-詳細は [LICENSE](LICENSE) ファイルを参照してください。
+MIT No Attribution (MIT-0)。詳細は [LICENSE](LICENSE) を参照してください。
