@@ -985,6 +985,124 @@ TEST(Shuffle, CLIParseShuffleMaxValidSeed)
 	EXPECT_TRUE(err_msg == NULL);
 }
 
+/* ========== Explicit Type Tests (C89 compatible macros) ========== */
+
+TEST(ExplicitType, IntComparisons)
+{
+	int a = 5, b = 10;
+	EXPECT_INT_EQ(5, 5);
+	EXPECT_INT_NE(a, b);
+	EXPECT_INT_LT(a, b);
+	EXPECT_INT_LE(a, b);
+	EXPECT_INT_LE(5, 5);
+	EXPECT_INT_GT(b, a);
+	EXPECT_INT_GE(b, a);
+	EXPECT_INT_GE(5, 5);
+}
+
+TEST(ExplicitType, IntAssertions)
+{
+	int a = 5, b = 10;
+	ASSERT_INT_EQ(5, 5);
+	ASSERT_INT_NE(a, b);
+	ASSERT_INT_LT(a, b);
+	ASSERT_INT_LE(a, b);
+	ASSERT_INT_LE(5, 5);
+	ASSERT_INT_GT(b, a);
+	ASSERT_INT_GE(b, a);
+	ASSERT_INT_GE(5, 5);
+}
+
+TEST(ExplicitType, IntNegativeValues)
+{
+	int neg = -42;
+	int pos = 10;
+	EXPECT_INT_EQ(neg, -42);
+	EXPECT_INT_NE(neg, pos);
+	EXPECT_INT_LT(neg, pos);
+	EXPECT_INT_LE(neg, pos);
+	EXPECT_INT_GT(pos, neg);
+	EXPECT_INT_GE(pos, neg);
+	ASSERT_INT_LT(-100, -50);
+}
+
+TEST(ExplicitType, UintComparisons)
+{
+	unsigned int a = 5, b = 10;
+	EXPECT_UINT_EQ(5u, 5u);
+	EXPECT_UINT_NE(a, b);
+	EXPECT_UINT_LT(a, b);
+	EXPECT_UINT_LE(a, b);
+	EXPECT_UINT_LE(5u, 5u);
+	EXPECT_UINT_GT(b, a);
+	EXPECT_UINT_GE(b, a);
+	EXPECT_UINT_GE(5u, 5u);
+}
+
+TEST(ExplicitType, UintAssertions)
+{
+	unsigned int a = 5, b = 10;
+	ASSERT_UINT_EQ(5u, 5u);
+	ASSERT_UINT_NE(a, b);
+	ASSERT_UINT_LT(a, b);
+	ASSERT_UINT_LE(a, b);
+	ASSERT_UINT_LE(5u, 5u);
+	ASSERT_UINT_GT(b, a);
+	ASSERT_UINT_GE(b, a);
+	ASSERT_UINT_GE(5u, 5u);
+}
+
+TEST(ExplicitType, UintZeroAndMax)
+{
+	unsigned int zero = 0;
+	unsigned int one = 1;
+	unsigned int max = (unsigned int)-1;
+	EXPECT_UINT_EQ(zero, 0u);
+	EXPECT_UINT_LT(zero, one);
+	EXPECT_UINT_GT(max, zero);
+	ASSERT_UINT_GE(max, one);
+}
+
+TEST(ExplicitType, PtrComparisons)
+{
+	int arr[2];
+	void *p1 = &arr[0];
+	void *p2 = &arr[1];
+	EXPECT_PTR_EQ(p1, p1);
+	EXPECT_PTR_NE(p1, p2);
+	EXPECT_PTR_LT(p1, p2);
+	EXPECT_PTR_LE(p1, p2);
+	EXPECT_PTR_LE(p1, p1);
+	EXPECT_PTR_GT(p2, p1);
+	EXPECT_PTR_GE(p2, p1);
+	EXPECT_PTR_GE(p1, p1);
+}
+
+TEST(ExplicitType, PtrAssertions)
+{
+	int arr[2];
+	void *p1 = &arr[0];
+	void *p2 = &arr[1];
+	ASSERT_PTR_EQ(p1, p1);
+	ASSERT_PTR_NE(p1, p2);
+	ASSERT_PTR_LT(p1, p2);
+	ASSERT_PTR_LE(p1, p2);
+	ASSERT_PTR_LE(p1, p1);
+	ASSERT_PTR_GT(p2, p1);
+	ASSERT_PTR_GE(p2, p1);
+	ASSERT_PTR_GE(p1, p1);
+}
+
+TEST(ExplicitType, PtrNullHandling)
+{
+	void *null_ptr = NULL;
+	int value = 42;
+	void *non_null = &value;
+	EXPECT_PTR_EQ(null_ptr, NULL);
+	EXPECT_PTR_NE(null_ptr, non_null);
+	ASSERT_PTR_EQ(NULL, NULL);
+}
+
 int main(int argc, char **argv)
 {
 	ATT_REGISTER_TESTS(manual_register_function);

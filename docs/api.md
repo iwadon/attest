@@ -61,6 +61,70 @@ All assertions come in two variants:
 
 Type dispatch uses C11 `_Generic` to handle signed/unsigned integers, floating-point, and pointers.
 
+### Explicit Type Macros (C89 Compatible)
+
+These macros provide type-explicit assertions that work in C89 environments without `_Generic`.
+
+#### Signed Integer (`INT`)
+
+- `EXPECT_INT_EQ(lhs, rhs)` / `ASSERT_INT_EQ(lhs, rhs)` — Equal
+- `EXPECT_INT_NE(lhs, rhs)` / `ASSERT_INT_NE(lhs, rhs)` — Not equal
+- `EXPECT_INT_LT(lhs, rhs)` / `ASSERT_INT_LT(lhs, rhs)` — Less than
+- `EXPECT_INT_LE(lhs, rhs)` / `ASSERT_INT_LE(lhs, rhs)` — Less than or equal
+- `EXPECT_INT_GT(lhs, rhs)` / `ASSERT_INT_GT(lhs, rhs)` — Greater than
+- `EXPECT_INT_GE(lhs, rhs)` / `ASSERT_INT_GE(lhs, rhs)` — Greater than or equal
+
+Values are cast to `long long` for comparison.
+
+```c
+TEST(Numbers, SignedInteger) {
+    int a = 42;
+    int b = 10;
+    ASSERT_INT_EQ(a, 42);
+    EXPECT_INT_GT(a, b);
+}
+```
+
+#### Unsigned Integer (`UINT`)
+
+- `EXPECT_UINT_EQ(lhs, rhs)` / `ASSERT_UINT_EQ(lhs, rhs)` — Equal
+- `EXPECT_UINT_NE(lhs, rhs)` / `ASSERT_UINT_NE(lhs, rhs)` — Not equal
+- `EXPECT_UINT_LT(lhs, rhs)` / `ASSERT_UINT_LT(lhs, rhs)` — Less than
+- `EXPECT_UINT_LE(lhs, rhs)` / `ASSERT_UINT_LE(lhs, rhs)` — Less than or equal
+- `EXPECT_UINT_GT(lhs, rhs)` / `ASSERT_UINT_GT(lhs, rhs)` — Greater than
+- `EXPECT_UINT_GE(lhs, rhs)` / `ASSERT_UINT_GE(lhs, rhs)` — Greater than or equal
+
+Values are cast to `unsigned long long` for comparison.
+
+```c
+TEST(Numbers, UnsignedInteger) {
+    unsigned int size = 256;
+    ASSERT_UINT_EQ(size, 256u);
+    EXPECT_UINT_GT(size, 100u);
+}
+```
+
+#### Pointer (`PTR`)
+
+- `EXPECT_PTR_EQ(lhs, rhs)` / `ASSERT_PTR_EQ(lhs, rhs)` — Equal
+- `EXPECT_PTR_NE(lhs, rhs)` / `ASSERT_PTR_NE(lhs, rhs)` — Not equal
+- `EXPECT_PTR_LT(lhs, rhs)` / `ASSERT_PTR_LT(lhs, rhs)` — Less than
+- `EXPECT_PTR_LE(lhs, rhs)` / `ASSERT_PTR_LE(lhs, rhs)` — Less than or equal
+- `EXPECT_PTR_GT(lhs, rhs)` / `ASSERT_PTR_GT(lhs, rhs)` — Greater than
+- `EXPECT_PTR_GE(lhs, rhs)` / `ASSERT_PTR_GE(lhs, rhs)` — Greater than or equal
+
+Pointers are compared as `uintptr_t` values.
+
+```c
+TEST(Pointer, Comparison) {
+    int arr[10];
+    int *p1 = &arr[0];
+    int *p2 = &arr[5];
+    ASSERT_PTR_NE(p1, p2);
+    EXPECT_PTR_LT(p1, p2);
+}
+```
+
 ### Boolean Assertions
 
 | Macro | Condition |
