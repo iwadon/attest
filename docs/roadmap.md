@@ -173,18 +173,19 @@ Internal code quality improvements that don't change public API.
 - [x] Create lookup table
 - [x] Replace individual functions (kept as thin wrappers for compatibility)
 
-#### R8: Format Function Consolidation
+#### R8: Format Function Consolidation ✓
 
 **Location:** `src/attest_assert.c:590-654`
 
 **Issue:** Seven formatting functions (`att_format_signed`, `att_format_unsigned`, etc.) follow same pattern.
 
-**Solution:** Macro-based generation or generic formatter.
+**Solution:** Macro-based generation for simple snprintf functions.
 
-**Impact:** ~65 lines → ~20 lines
+**Status:** Complete
 
-- [ ] Design generic formatter macro
-- [ ] Replace individual functions
+- [x] Design `ATT_DEFINE_FORMATTER(name, type, fmt_spec)` macro
+- [x] Replace signed, unsigned, double, long_double with macro
+- [x] Keep pointer, bool, string as-is (special handling required)
 
 #### R9: String Utility Consolidation
 

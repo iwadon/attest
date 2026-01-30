@@ -586,37 +586,19 @@ typedef struct att_formatted {
 	const char *text;
 } att_formatted;
 
-static att_formatted att_format_signed(long long value)
-{
-	att_formatted fmt;
-	snprintf(fmt.buffer, sizeof(fmt.buffer), "%lld", value);
-	fmt.text = fmt.buffer;
-	return fmt;
-}
+#define ATT_DEFINE_FORMATTER(name, type, fmt_spec)                 \
+	static att_formatted att_format_##name(type value)             \
+	{                                                              \
+		att_formatted fmt;                                         \
+		snprintf(fmt.buffer, sizeof(fmt.buffer), fmt_spec, value); \
+		fmt.text = fmt.buffer;                                     \
+		return fmt;                                                \
+	}
 
-static att_formatted att_format_unsigned(unsigned long long value)
-{
-	att_formatted fmt;
-	snprintf(fmt.buffer, sizeof(fmt.buffer), "%llu", value);
-	fmt.text = fmt.buffer;
-	return fmt;
-}
-
-static att_formatted att_format_double(double value)
-{
-	att_formatted fmt;
-	snprintf(fmt.buffer, sizeof(fmt.buffer), "%.9g", value);
-	fmt.text = fmt.buffer;
-	return fmt;
-}
-
-static att_formatted att_format_long_double(long double value)
-{
-	att_formatted fmt;
-	snprintf(fmt.buffer, sizeof(fmt.buffer), "%.18Lg", value);
-	fmt.text = fmt.buffer;
-	return fmt;
-}
+ATT_DEFINE_FORMATTER(signed, long long, "%lld")
+ATT_DEFINE_FORMATTER(unsigned, unsigned long long, "%llu")
+ATT_DEFINE_FORMATTER(double, double, "%.9g")
+ATT_DEFINE_FORMATTER(long_double, long double, "%.18Lg")
 
 static att_formatted att_format_pointer(const void *value)
 {
