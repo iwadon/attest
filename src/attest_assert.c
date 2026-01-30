@@ -10,12 +10,7 @@
 #include "attest/attest.h"
 #include "internal/attest_context.h"
 #include "internal/attest_internal.h"
-
-/* Platform-specific includes */
-#ifdef ATT_PLATFORM_POSIX
-#include <signal.h>
-#include <sys/time.h>
-#endif
+#include "internal/attest_timeout.h"
 
 #ifdef ATT_PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
@@ -70,17 +65,82 @@ static char *att_dup_string(const char *text);
 static const char *att_color_fail(void);
 static const char *att_color_reset(void);
 static bool att_context_failure_append_format(const char *fmt, ...);
-static ATT_THREAD_LOCAL bool g_timeout_handler_installed;
 
-#ifdef ATT_PLATFORM_POSIX
-static void att_timeout_signal_handler(int signo)
+/* ========================================================================
+ * Timeout context accessors (used by attest_timeout_*.c)
+ * ======================================================================== */
+
+bool att_timeout_ctx_is_active(void)
 {
-	(void)signo;
-	if (!g_ctx || !g_ctx->active) {
-		return;
+	return g_ctx && g_ctx->active;
+}
+
+bool att_timeout_ctx_is_triggered(void)
+{
+	return g_ctx ? g_ctx->timeout_triggered : false;
+}
+
+void att_timeout_ctx_set_triggered(bool triggered)
+{
+	if (g_ctx) {
+		g_ctx->timeout_triggered = triggered;
 	}
-	g_ctx->timeout_triggered = true;
-	att_longjmp(g_ctx->abort_env, 1);
+}
+
+int att_timeout_ctx_get_ms(void)
+{
+	return g_ctx ? g_ctx->timeout_ms : 0;
+}
+
+void att_timeout_ctx_set_ms(int ms)
+{
+	if (g_ctx) {
+		g_ctx->timeout_ms = ms;
+	}
+}
+
+void att_timeout_ctx_abort(void)
+{
+	if (g_ctx) {
+		att_longjmp(g_ctx->abort_env, 1);
+	}
+}
+
+#ifdef ATT_PLATFORM_WINDOWS
+void *att_timeout_ctx_get_thread(void)
+{
+	return g_ctx ? g_ctx->timeout_thread : NULL;
+}
+
+void att_timeout_ctx_set_thread(void *handle)
+{
+	if (g_ctx) {
+		g_ctx->timeout_thread = (HANDLE)handle;
+	}
+}
+
+void *att_timeout_ctx_get_event(void)
+{
+	return g_ctx ? g_ctx->timeout_event : NULL;
+}
+
+void att_timeout_ctx_set_event(void *handle)
+{
+	if (g_ctx) {
+		g_ctx->timeout_event = (HANDLE)handle;
+	}
+}
+
+bool att_timeout_ctx_init_failed(void)
+{
+	return g_ctx ? g_ctx->timeout_init_failed : false;
+}
+
+void att_timeout_ctx_set_init_failed(bool failed)
+{
+	if (g_ctx) {
+		g_ctx->timeout_init_failed = failed;
+	}
 }
 #endif
 
@@ -400,153 +460,19 @@ void att_context_capture_failures(bool enabled)
 	g_ctx->capture_failures = false;
 }
 
-#ifdef ATT_PLATFORM_POSIX
-/* POSIX implementation: signal-based timeout using setitimer */
-static void att_timeout_install_handler(void)
-{
-	if (g_timeout_handler_installed) {
-		return;
-	}
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = att_timeout_signal_handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	if (sigaction(SIGALRM, &sa, NULL) == 0) {
-		g_timeout_handler_installed = true;
-	}
-}
-
+/* Timeout implementation delegated to platform-specific files:
+ * - src/internal/attest_timeout_posix.c (POSIX, Human68k)
+ * - src/internal/attest_timeout_win32.c (Windows)
+ */
 void att_context_timeout_start(int timeout_ms)
 {
-	if (!g_ctx->active || timeout_ms <= 0) {
-		return;
-	}
-	att_timeout_install_handler();
-	g_ctx->timeout_triggered = false;
-	g_ctx->timeout_ms = timeout_ms;
-	struct itimerval timer;
-	memset(&timer, 0, sizeof(timer));
-	timer.it_value.tv_sec = timeout_ms / 1000;
-	timer.it_value.tv_usec = (timeout_ms % 1000) * 1000;
-	setitimer(ITIMER_REAL, &timer, NULL);
+	att_timeout_start(timeout_ms);
 }
 
 void att_context_timeout_stop(void)
 {
-	struct itimerval timer;
-	memset(&timer, 0, sizeof(timer));
-	setitimer(ITIMER_REAL, &timer, NULL);
-	if (g_ctx) {
-		g_ctx->timeout_ms = 0;
-	}
+	att_timeout_stop();
 }
-#elif defined(ATT_PLATFORM_HUMAN68K)
-/* Human68k: Timeout feature not supported (no setitimer/sigaction available) */
-void att_context_timeout_start(int timeout_ms)
-{
-	(void)timeout_ms;
-	/* No-op: timeout not supported on Human68k */
-}
-
-void att_context_timeout_stop(void)
-{
-	/* No-op: timeout not supported on Human68k */
-}
-#else
-/* Windows: Timeout feature using threads */
-static unsigned __stdcall att_timeout_thread_proc(void *arg)
-{
-	int timeout_ms = (int)(intptr_t)arg;
-
-	/* Use WaitForSingleObject instead of Sleep to allow early cancellation */
-	if (g_ctx && g_ctx->timeout_event) {
-		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_event, (DWORD)timeout_ms);
-
-		/* WAIT_TIMEOUT means the timeout expired (expected path) */
-		/* WAIT_OBJECT_0 means the event was signaled (early cancellation) */
-		if (wait_result == WAIT_TIMEOUT && g_ctx->active && !g_ctx->timeout_triggered) {
-			g_ctx->timeout_triggered = true;
-			/* Signal the event to indicate timeout occurred */
-			SetEvent(g_ctx->timeout_event);
-		}
-	}
-
-	return 0;
-}
-
-void att_context_timeout_start(int timeout_ms)
-{
-	if (!g_ctx->active || timeout_ms <= 0) {
-		return;
-	}
-
-	/* Clean up any existing timeout */
-	att_context_timeout_stop();
-
-	g_ctx->timeout_triggered = false;
-	g_ctx->timeout_ms = timeout_ms;
-	g_ctx->timeout_init_failed = false;
-	g_ctx->timeout_check_counter = 0;
-
-	/* Create event for timeout signaling */
-	g_ctx->timeout_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (!g_ctx->timeout_event) {
-		fprintf(stderr, "Warning: Failed to create timeout event. Timeout feature disabled.\n");
-		g_ctx->timeout_init_failed = true;
-		g_ctx->timeout_ms = 0;
-		return;
-	}
-
-	/* Create timeout thread */
-	g_ctx->timeout_thread = (HANDLE)_beginthreadex(
-		NULL,
-		0,
-		att_timeout_thread_proc,
-		(void *)(intptr_t)timeout_ms,
-		0,
-		NULL);
-
-	if (!g_ctx->timeout_thread) {
-		fprintf(stderr, "Warning: Failed to create timeout thread. Timeout feature disabled.\n");
-		CloseHandle(g_ctx->timeout_event);
-		g_ctx->timeout_event = NULL;
-		g_ctx->timeout_init_failed = true;
-		g_ctx->timeout_ms = 0;
-	}
-}
-
-void att_context_timeout_stop(void)
-{
-	if (!g_ctx) {
-		return;
-	}
-
-	if (g_ctx->timeout_thread) {
-		/* Signal the event to wake up the timeout thread early */
-		if (g_ctx->timeout_event) {
-			SetEvent(g_ctx->timeout_event);
-		}
-
-		/* Wait for thread to complete with reasonable timeout (1 second should be enough) */
-		DWORD wait_result = WaitForSingleObject(g_ctx->timeout_thread, 1000);
-		if (wait_result == WAIT_TIMEOUT) {
-			/* Thread didn't finish in time - this shouldn't happen with the new implementation
-			   but we handle it gracefully to avoid hanging */
-			fprintf(stderr, "Warning: Timeout thread did not terminate in time\n");
-		}
-		CloseHandle(g_ctx->timeout_thread);
-		g_ctx->timeout_thread = NULL;
-	}
-
-	if (g_ctx->timeout_event) {
-		CloseHandle(g_ctx->timeout_event);
-		g_ctx->timeout_event = NULL;
-	}
-
-	g_ctx->timeout_ms = 0;
-}
-#endif
 typedef enum {
 	ATT_COLOR_FAIL,
 	ATT_COLOR_FILE,

@@ -8,7 +8,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Thread library detection (for parallel execution support)
 find_package(Threads)
 
-add_library(attest STATIC
+set(ATTEST_SOURCES
     src/attest.c
     src/attest_cli.c
     src/attest_assert.c
@@ -17,6 +17,15 @@ add_library(attest STATIC
     src/attest_parallel.c
     src/internal/attest_registry.c
 )
+
+# Platform-specific timeout implementation
+if(WIN32)
+    list(APPEND ATTEST_SOURCES src/internal/attest_timeout_win32.c)
+else()
+    list(APPEND ATTEST_SOURCES src/internal/attest_timeout_posix.c)
+endif()
+
+add_library(attest STATIC ${ATTEST_SOURCES})
 
 target_include_directories(attest
     PUBLIC

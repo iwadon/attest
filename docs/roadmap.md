@@ -111,9 +111,9 @@ Internal code quality improvements that don't change public API.
 
 ### Medium Priority (Maintainability)
 
-#### R4: Platform Timeout Separation
+#### R4: Platform Timeout Separation ✓
 
-**Location:** `src/attest_assert.c:403-549`
+**Location:** `src/attest_assert.c:403-549` (original)
 
 **Issue:** POSIX/Windows/Human68k implementations mixed in ~150 lines of conditional compilation.
 
@@ -122,10 +122,13 @@ Internal code quality improvements that don't change public API.
 - `src/internal/attest_timeout_win32.c`
 - `src/internal/attest_timeout.h` (common interface)
 
-- [ ] Define platform-agnostic interface
-- [ ] Extract POSIX implementation
-- [ ] Extract Windows implementation
-- [ ] Update CMakeLists.txt
+**Status:** Complete
+
+- [x] Define platform-agnostic interface (`att_timeout_start`, `att_timeout_stop`)
+- [x] Extract POSIX implementation (includes Human68k stubs)
+- [x] Extract Windows implementation
+- [x] Update CMakeLists.txt (conditional source selection)
+- [x] Add context accessor functions to bridge timeout modules with context state
 
 #### R5: Split `att_handle_string()`
 
