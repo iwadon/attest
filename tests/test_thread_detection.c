@@ -1,6 +1,6 @@
 /* Test file to verify thread detection macros */
-#include <stdio.h>
 #include "internal/attest_internal.h"
+#include <stdio.h>
 
 int main(void)
 {

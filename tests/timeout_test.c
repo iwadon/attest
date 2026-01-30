@@ -1,6 +1,6 @@
+#include "attest/attest.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "attest/attest.h"
 
 /*
  * Manual timeout verification tests
@@ -60,8 +60,8 @@ TEST(Timeout, WithAsserts)
 		ATT_SKIP("Set ATTEST_ENABLE_TIMEOUT_WITH_ASSERTS_TEST=1 to enable");
 	}
 	/* This test should timeout during the infinite loop with assertions */
-	for (int i = 0; ; ++i) {
-		EXPECT_TRUE(true);  /* Keep asserting so Windows can check timeout */
+	for (int i = 0;; ++i) {
+		EXPECT_TRUE(true); /* Keep asserting so Windows can check timeout */
 	}
 }
 

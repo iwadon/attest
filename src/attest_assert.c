@@ -199,7 +199,7 @@ void att_context_abort(void)
 	int saved_timeout_ms = ctx->timeout_ms;
 	att_context_timeout_stop();
 	ctx->timeout_ms = saved_timeout_ms;
-	
+
 	/* Jump to the current context's setjmp point.
 	   Do not walk up to parent contexts, as that causes stack frame misalignment.
 	   The current context's abort_env was initialized by setjmp in the correct stack frame. */
@@ -371,7 +371,7 @@ void att_context_skip(const char *reason)
 	}
 
 	att_context_fixture_on_abort();
-	
+
 	/* Jump to the current context's setjmp point.
 	   Do not walk up to parent contexts, as that causes stack frame misalignment.
 	   The current context's abort_env was initialized by setjmp in the correct stack frame. */
@@ -615,8 +615,8 @@ static att_formatted att_format_long_double(long double value)
 {
 	att_formatted fmt;
 	snprintf(fmt.buffer, sizeof(fmt.buffer), "%.18Lg", value);
- fmt.text = fmt.buffer;
- return fmt;
+	fmt.text = fmt.buffer;
+	return fmt;
 }
 
 static att_formatted att_format_pointer(const void *value)
@@ -972,7 +972,7 @@ void att_handle_compare_long_double(int op, const char *assertion, const char *f
 
 	att_formatted lhs_fmt = att_format_long_double(lhs);
 	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-	 lhs_fmt.text = lhs_fmt.buffer;
+		lhs_fmt.text = lhs_fmt.buffer;
 	}
 	att_formatted rhs_fmt = att_format_long_double(rhs);
 	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
@@ -1738,8 +1738,8 @@ att_subtest_scope *att_subtest_scope_enter(const char *name)
 	const char *sub_name = name ? name : "subtest";
 
 	size_t parent_len = strlen(parent_name);
- size_t sub_len = strlen(sub_name);
- size_t total_len = parent_len + 3 + sub_len;
+	size_t sub_len = strlen(sub_name);
+	size_t total_len = parent_len + 3 + sub_len;
 
 	char *full_name = malloc(total_len + 1);
 	if (full_name) {

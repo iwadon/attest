@@ -4,22 +4,22 @@
 /* Platform detection for setjmp/longjmp */
 /* Human68k (Sharp X680x0 series): m68k-based platform with POSIX-like APIs */
 #if defined(__human68k__) || defined(__human68k)
-	#define ATT_PLATFORM_HUMAN68K
+#define ATT_PLATFORM_HUMAN68K
 /* Unix-like systems: Linux, macOS, BSD, etc. */
 #elif defined(__unix__) || defined(__APPLE__) || defined(__linux__)
-	#define ATT_PLATFORM_POSIX
+#define ATT_PLATFORM_POSIX
 #endif
 
 /* Enable POSIX features for sigjmp_buf/sigsetjmp/siglongjmp */
 #ifdef ATT_PLATFORM_POSIX
-	#ifndef _POSIX_C_SOURCE
-		#define _POSIX_C_SOURCE 200809L
-	#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #endif
 
 /* Platform-specific includes for setjmp/longjmp */
 #ifdef ATT_PLATFORM_POSIX
-	#include <signal.h>  /* For sigjmp_buf, sigsetjmp, siglongjmp */
+#include <signal.h> /* For sigjmp_buf, sigsetjmp, siglongjmp */
 #endif
 #include <setjmp.h>
 #include <stdbool.h>
@@ -33,15 +33,15 @@ extern "C" {
 
 /* setjmp/longjmp abstraction */
 #ifdef ATT_PLATFORM_POSIX
-	/* POSIX: Use signal-aware setjmp to preserve signal mask */
-	typedef sigjmp_buf att_jmp_buf;
-	#define att_setjmp(env) sigsetjmp((env), 1)
-	#define att_longjmp(env, val) siglongjmp((env), (val))
+/* POSIX: Use signal-aware setjmp to preserve signal mask */
+typedef sigjmp_buf att_jmp_buf;
+#define att_setjmp(env) sigsetjmp((env), 1)
+#define att_longjmp(env, val) siglongjmp((env), (val))
 #else
-	/* Human68k, Windows, and others: Use standard C setjmp/longjmp */
-	typedef jmp_buf att_jmp_buf;
-	#define att_setjmp(env) setjmp(env)
-	#define att_longjmp(env, val) longjmp((env), (val))
+/* Human68k, Windows, and others: Use standard C setjmp/longjmp */
+typedef jmp_buf att_jmp_buf;
+#define att_setjmp(env) setjmp(env)
+#define att_longjmp(env, val) longjmp((env), (val))
 #endif
 
 typedef enum {
@@ -228,189 +228,189 @@ struct att_info_scope {
 #endif /* C11 _Generic support */
 
 /* C89-compatible explicit type macros - INT (signed) */
-#define ASSERT_INT_EQ(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_EQ, "ASSERT_INT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_EQ(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_EQ, "ASSERT_INT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_EQ(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_EQ, "EXPECT_INT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_EQ(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_EQ, "EXPECT_INT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
-#define ASSERT_INT_NE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_NE, "ASSERT_INT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_NE(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_NE, "ASSERT_INT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_NE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_NE, "EXPECT_INT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_NE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_NE, "EXPECT_INT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
-#define ASSERT_INT_LT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_LT, "ASSERT_INT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_LT(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_LT, "ASSERT_INT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_LT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_LT, "EXPECT_INT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_LT(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_LT, "EXPECT_INT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
-#define ASSERT_INT_LE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_LE, "ASSERT_INT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_LE(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_LE, "ASSERT_INT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_LE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_LE, "EXPECT_INT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_LE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_LE, "EXPECT_INT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
-#define ASSERT_INT_GT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_GT, "ASSERT_INT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_GT(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_GT, "ASSERT_INT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_GT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_GT, "EXPECT_INT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_GT(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_GT, "EXPECT_INT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
-#define ASSERT_INT_GE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_GE, "ASSERT_INT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,          \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define ASSERT_INT_GE(lhs, rhs)                                                                               \
+	do {                                                                                                      \
+		att_handle_compare_signed(ATT_COMP_GE, "ASSERT_INT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                  \
 	} while (0)
-#define EXPECT_INT_GE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_signed(ATT_COMP_GE, "EXPECT_INT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,         \
-			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                           \
+#define EXPECT_INT_GE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_signed(ATT_COMP_GE, "EXPECT_INT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (long long)(lhs), (long long)(rhs));                                                   \
 	} while (0)
 
 /* C89-compatible explicit type macros - UINT (unsigned) */
-#define ASSERT_UINT_EQ(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_EQ, "ASSERT_UINT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_EQ(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_EQ, "ASSERT_UINT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_EQ(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_EQ, "EXPECT_UINT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_EQ(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_EQ, "EXPECT_UINT_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
-#define ASSERT_UINT_NE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_NE, "ASSERT_UINT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_NE(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_NE, "ASSERT_UINT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_NE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_NE, "EXPECT_UINT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_NE(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_NE, "EXPECT_UINT_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
-#define ASSERT_UINT_LT(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_LT, "ASSERT_UINT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_LT(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_LT, "ASSERT_UINT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_LT(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_LT, "EXPECT_UINT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_LT(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_LT, "EXPECT_UINT_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
-#define ASSERT_UINT_LE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_LE, "ASSERT_UINT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_LE(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_LE, "ASSERT_UINT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_LE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_LE, "EXPECT_UINT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_LE(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_LE, "EXPECT_UINT_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
-#define ASSERT_UINT_GT(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_GT, "ASSERT_UINT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_GT(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_GT, "ASSERT_UINT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_GT(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_GT, "EXPECT_UINT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_GT(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_GT, "EXPECT_UINT_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
-#define ASSERT_UINT_GE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_GE, "ASSERT_UINT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,       \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define ASSERT_UINT_GE(lhs, rhs)                                                                                 \
+	do {                                                                                                         \
+		att_handle_compare_unsigned(ATT_COMP_GE, "ASSERT_UINT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                   \
 	} while (0)
-#define EXPECT_UINT_GE(lhs, rhs)                                                                                       \
-	do {                                                                                                               \
-		att_handle_compare_unsigned(ATT_COMP_GE, "EXPECT_UINT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,      \
-			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                         \
+#define EXPECT_UINT_GE(lhs, rhs)                                                                                  \
+	do {                                                                                                          \
+		att_handle_compare_unsigned(ATT_COMP_GE, "EXPECT_UINT_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (unsigned long long)(lhs), (unsigned long long)(rhs));                                    \
 	} while (0)
 
 /* C89-compatible explicit type macros - PTR (pointer) */
-#define ASSERT_PTR_EQ(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_EQ, "ASSERT_PTR_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_EQ(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_EQ, "ASSERT_PTR_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_EQ(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_EQ, "EXPECT_PTR_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_EQ(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_EQ, "EXPECT_PTR_EQ(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
-#define ASSERT_PTR_NE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_NE, "ASSERT_PTR_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_NE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_NE, "ASSERT_PTR_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_NE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_NE, "EXPECT_PTR_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_NE(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_NE, "EXPECT_PTR_NE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
-#define ASSERT_PTR_LT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_LT, "ASSERT_PTR_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_LT(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_LT, "ASSERT_PTR_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_LT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_LT, "EXPECT_PTR_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_LT(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_LT, "EXPECT_PTR_LT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
-#define ASSERT_PTR_LE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_LE, "ASSERT_PTR_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_LE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_LE, "ASSERT_PTR_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_LE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_LE, "EXPECT_PTR_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_LE(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_LE, "EXPECT_PTR_LE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
-#define ASSERT_PTR_GT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_GT, "ASSERT_PTR_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_GT(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_GT, "ASSERT_PTR_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_GT(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_GT, "EXPECT_PTR_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_GT(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_GT, "EXPECT_PTR_GT(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
-#define ASSERT_PTR_GE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_GE, "ASSERT_PTR_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true,         \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define ASSERT_PTR_GE(lhs, rhs)                                                                                \
+	do {                                                                                                       \
+		att_handle_compare_pointer(ATT_COMP_GE, "ASSERT_PTR_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, true, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                             \
 	} while (0)
-#define EXPECT_PTR_GE(lhs, rhs)                                                                                        \
-	do {                                                                                                               \
-		att_handle_compare_pointer(ATT_COMP_GE, "EXPECT_PTR_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false,        \
-			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                                     \
+#define EXPECT_PTR_GE(lhs, rhs)                                                                                 \
+	do {                                                                                                        \
+		att_handle_compare_pointer(ATT_COMP_GE, "EXPECT_PTR_GE(" #lhs ", " #rhs ")", __FILE__, __LINE__, false, \
+			#lhs, #rhs, (const void *)(lhs), (const void *)(rhs));                                              \
 	} while (0)
 
 #define ASSERT_TRUE(expr)                                                                            \
