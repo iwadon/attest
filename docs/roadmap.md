@@ -92,19 +92,20 @@ Internal code quality improvements that don't change public API.
 - [ ] Replace individual functions
 - [ ] Add tests for edge cases
 
-#### R3: Failure Reporting Extraction
+#### R3: Failure Reporting Extraction ✓
 
 **Location:** `src/attest_assert.c:736-811, 1256-1353`
 
 **Issue:** Info stack printing loop duplicated 4 times across `att_report_failure()` and `att_handle_string()`.
 
-**Solution:** Extract `att_print_info_stack(FILE *out)` helper.
+**Solution:** Extract `att_failure_context` struct and helper functions.
 
-**Impact:** ~50 lines reduction, single source of truth
+**Status:** Complete
 
-- [ ] Create helper function
-- [ ] Refactor `att_report_failure()`
-- [ ] Refactor `att_handle_string()`
+- [x] Create `att_failure_context` struct and `att_failure_begin()` helper
+- [x] Create `att_print_info_stack_and_location()` helper
+- [x] Refactor `att_report_failure()`
+- [x] Refactor `att_handle_string()`
 
 ### Medium Priority (Maintainability)
 

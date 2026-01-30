@@ -732,52 +732,68 @@ static const char *att_phase_tag(att_context_phase phase)
 	}
 }
 
-static void att_report_failure(bool fatal, const char *assertion, const char *file, int line, const char *expected, const char *actual, const char *expr_detail, const char *extra_label, const char *extra_value)
+typedef struct att_failure_context {
+	const char *test_name;
+	const char *phase;
+	const char *fail_color;
+	const char *file_color;
+	const char *reset;
+	FILE *out;
+	bool suppress;
+} att_failure_context;
+
+static att_failure_context att_failure_begin(void)
 {
 	const att_test_case *test = att_context_current_test();
-	const char *test_name = test ? test->fullname : "<unknown>";
-	const char *fail_color = att_color_fail();
-	const char *file_color = att_color_file();
-	const char *reset = att_color_reset();
-	const char *phase = att_phase_tag(att_context_phase_current());
-	FILE *out = stderr;
+	att_failure_context fc = {
+		.test_name = test ? test->fullname : "<unknown>",
+		.phase = att_phase_tag(att_context_phase_current()),
+		.fail_color = att_color_fail(),
+		.file_color = att_color_file(),
+		.reset = att_color_reset(),
+		.out = stderr,
+		.suppress = (g_ctx && g_ctx->active && (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT)),
+	};
 
-	bool suppress_default_output = (g_ctx && g_ctx->active && (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT));
-
-	if (!suppress_default_output) {
-		fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
-		if (phase) {
-			fprintf(out, " (%s)", phase);
+	if (!fc.suppress) {
+		fprintf(fc.out, "%s[  FAILED  ]%s %s", fc.fail_color, fc.reset, fc.test_name);
+		if (fc.phase) {
+			fprintf(fc.out, " (%s)", fc.phase);
 		}
-		fprintf(out, "\n");
+		fprintf(fc.out, "\n");
 	}
-	if (phase) {
-		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", test_name, phase);
+	if (fc.phase) {
+		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", fc.test_name, fc.phase);
 	} else {
-		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
+		att_context_failure_append_format("[  FAILED  ] %s\n", fc.test_name);
 	}
 
+	return fc;
+}
+
+static void att_print_info_stack_and_location(const att_failure_context *fc, const char *assertion, const char *file, int line, bool fatal)
+{
 	for (int i = 0; i < g_ctx->info_stack_size; ++i) {
 		att_context_failure_append_format("  context: %s\n", g_ctx->info_stack[i]);
 	}
-	if (!suppress_default_output) {
+	if (!fc->suppress) {
 		for (int i = 0; i < g_ctx->info_stack_size; ++i) {
-			fprintf(out, "  context: %s\n", g_ctx->info_stack[i]);
+			fprintf(fc->out, "  context: %s\n", g_ctx->info_stack[i]);
 		}
-		fprintf(out, "%s  ", file_color);
-		if (phase) {
-			fprintf(out, "(%s) ", phase);
+		fprintf(fc->out, "%s  ", fc->file_color);
+		if (fc->phase) {
+			fprintf(fc->out, "(%s) ", fc->phase);
 		}
-		fprintf(out, "%s:%d: %s failed%s%s\n",
+		fprintf(fc->out, "%s:%d: %s failed%s%s\n",
 			file,
 			line,
 			assertion,
 			fatal ? " (fatal)." : ".",
-			reset);
+			fc->reset);
 	}
-	if (phase) {
+	if (fc->phase) {
 		att_context_failure_append_format("  (%s) %s:%d: %s failed%s\n",
-			phase,
+			fc->phase,
 			file,
 			line,
 			assertion,
@@ -789,22 +805,29 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 			assertion,
 			fatal ? " (fatal)." : ".");
 	}
-	if (!suppress_default_output) {
-		fprintf(out, "    expected: %s\n", expected);
+}
+
+static void att_report_failure(bool fatal, const char *assertion, const char *file, int line, const char *expected, const char *actual, const char *expr_detail, const char *extra_label, const char *extra_value)
+{
+	att_failure_context fc = att_failure_begin();
+	att_print_info_stack_and_location(&fc, assertion, file, line, fatal);
+
+	if (!fc.suppress) {
+		fprintf(fc.out, "    expected: %s\n", expected);
 	}
 	att_context_failure_append_format("    expected: %s\n", expected);
-	if (!suppress_default_output) {
-		fprintf(out, "      actual: %s\n", actual);
+	if (!fc.suppress) {
+		fprintf(fc.out, "      actual: %s\n", actual);
 	}
 	att_context_failure_append_format("      actual: %s\n", actual);
 	if (extra_label && extra_value) {
-		if (!suppress_default_output) {
-			fprintf(out, "    %s: %s\n", extra_label, extra_value);
+		if (!fc.suppress) {
+			fprintf(fc.out, "    %s: %s\n", extra_label, extra_value);
 		}
 		att_context_failure_append_format("    %s: %s\n", extra_label, extra_value);
 	}
-	if (!suppress_default_output) {
-		fprintf(out, "    expr: %s\n", expr_detail);
+	if (!fc.suppress) {
+		fprintf(fc.out, "    expr: %s\n", expr_detail);
 	}
 	att_context_failure_append_format("    expr: %s\n", expr_detail);
 }
@@ -1262,66 +1285,12 @@ void att_handle_string(int op, const char *assertion, const char *file, int line
 		return;
 	}
 
-	const att_test_case *test = att_context_current_test();
-	const char *test_name = test ? test->fullname : "<unknown>";
-	const char *fail_color = att_color_fail();
-	const char *file_color = att_color_file();
-	const char *reset = att_color_reset();
-	const char *phase = att_phase_tag(att_context_phase_current());
-	FILE *out = stderr;
-
-	bool suppress_default_output = (g_ctx && g_ctx->active && (g_ctx->format == ATT_OUTPUT_TAP || g_ctx->format == ATT_OUTPUT_JUNIT));
-
+	att_failure_context fc = att_failure_begin();
 	bool has_newline = (lhs && strchr(lhs, '\n')) || (rhs && strchr(rhs, '\n'));
+	att_print_info_stack_and_location(&fc, assertion, file, line, fatal);
 
-	if (!suppress_default_output) {
-		fprintf(out, "%s[  FAILED  ]%s %s", fail_color, reset, test_name);
-		if (phase) {
-			fprintf(out, " (%s)", phase);
-		}
-		fprintf(out, "\n");
-	}
-	if (phase) {
-		att_context_failure_append_format("[  FAILED  ] %s (%s)\n", test_name, phase);
-	} else {
-		att_context_failure_append_format("[  FAILED  ] %s\n", test_name);
-	}
-
-	for (int i = 0; i < g_ctx->info_stack_size; ++i) {
-		att_context_failure_append_format("  context: %s\n", g_ctx->info_stack[i]);
-	}
-	if (!suppress_default_output) {
-		for (int i = 0; i < g_ctx->info_stack_size; ++i) {
-			fprintf(out, "  context: %s\n", g_ctx->info_stack[i]);
-		}
-		fprintf(out, "%s  ", file_color);
-		if (phase) {
-			fprintf(out, "(%s) ", phase);
-		}
-		fprintf(out, "%s:%d: %s failed%s%s\n",
-			file,
-			line,
-			assertion,
-			fatal ? " (fatal)." : ".",
-			reset);
-	}
-	if (phase) {
-		att_context_failure_append_format("  (%s) %s:%d: %s failed%s\n",
-			phase,
-			file,
-			line,
-			assertion,
-			fatal ? " (fatal)." : ".");
-	} else {
-		att_context_failure_append_format("  %s:%d: %s failed%s\n",
-			file,
-			line,
-			assertion,
-			fatal ? " (fatal)." : ".");
-	}
-
-	if (has_newline && !suppress_default_output) {
-		att_format_string_diff(out, lhs, rhs);
+	if (has_newline && !fc.suppress) {
+		att_format_string_diff(fc.out, lhs, rhs);
 	} else {
 		att_formatted lhs_fmt = att_format_string(lhs);
 		if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
@@ -1331,17 +1300,17 @@ void att_handle_string(int op, const char *assertion, const char *file, int line
 		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
 			rhs_fmt.text = rhs_fmt.buffer;
 		}
-		if (!suppress_default_output) {
-			fprintf(out, "    expected: %s\n", lhs_fmt.text);
-			fprintf(out, "      actual: %s\n", rhs_fmt.text);
+		if (!fc.suppress) {
+			fprintf(fc.out, "    expected: %s\n", lhs_fmt.text);
+			fprintf(fc.out, "      actual: %s\n", rhs_fmt.text);
 		}
 		att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
 		att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
 
 		char expr[256];
 		att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-		if (!suppress_default_output) {
-			fprintf(out, "    expr: %s\n", expr);
+		if (!fc.suppress) {
+			fprintf(fc.out, "    expr: %s\n", expr);
 		}
 		att_context_failure_append_format("    expr: %s\n", expr);
 	}
