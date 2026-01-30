@@ -837,142 +837,49 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 
 ATT_DEFINE_COMPARE(values, long long)
 ATT_DEFINE_COMPARE(unsigned_values, unsigned long long)
-
-void att_handle_compare_signed(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long long lhs, long long rhs)
-{
-	bool passed = att_compare_values(op, lhs, rhs);
-	att_context_record_assert(fatal, passed);
-	if (passed) {
-		return;
-	}
-
-	att_formatted lhs_fmt = att_format_signed(lhs);
-	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-		lhs_fmt.text = lhs_fmt.buffer;
-	}
-	att_formatted rhs_fmt = att_format_signed(rhs);
-	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
-		rhs_fmt.text = rhs_fmt.buffer;
-	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
-	if (fatal) {
-		att_context_abort();
-	}
-}
-
-void att_handle_compare_unsigned(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, unsigned long long lhs, unsigned long long rhs)
-{
-	bool passed = att_compare_unsigned_values(op, lhs, rhs);
-	att_context_record_assert(fatal, passed);
-	if (passed) {
-		return;
-	}
-
-	att_formatted lhs_fmt = att_format_unsigned(lhs);
-	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-		lhs_fmt.text = lhs_fmt.buffer;
-	}
-	att_formatted rhs_fmt = att_format_unsigned(rhs);
-	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
-		rhs_fmt.text = rhs_fmt.buffer;
-	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
-	if (fatal) {
-		att_context_abort();
-	}
-}
-
 ATT_DEFINE_COMPARE(double_values, double)
-
-void att_handle_compare_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, double lhs, double rhs)
-{
-	bool passed = att_compare_double_values(op, lhs, rhs);
-	att_context_record_assert(fatal, passed);
-	if (passed) {
-		return;
-	}
-
-	att_formatted lhs_fmt = att_format_double(lhs);
-	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-		lhs_fmt.text = lhs_fmt.buffer;
-	}
-	att_formatted rhs_fmt = att_format_double(rhs);
-	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
-		rhs_fmt.text = rhs_fmt.buffer;
-	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
-	if (fatal) {
-		att_context_abort();
-	}
-}
-
 ATT_DEFINE_COMPARE(long_double_values, long double)
+ATT_DEFINE_COMPARE(pointer_values, uintptr_t)
 
-void att_handle_compare_long_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long double lhs, long double rhs)
-{
-	bool passed = att_compare_long_double_values(op, lhs, rhs);
-	att_context_record_assert(fatal, passed);
-	if (passed) {
-		return;
+#define ATT_DEFINE_HANDLER(name, type, compare_fn, format_fn)                                                                                                   \
+	void att_handle_compare_##name(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, type lhs, \
+		type rhs)                                                                                                                                               \
+	{                                                                                                                                                           \
+		bool passed = compare_fn(op, lhs, rhs);                                                                                                                 \
+		att_context_record_assert(fatal, passed);                                                                                                               \
+		if (passed) {                                                                                                                                           \
+			return;                                                                                                                                             \
+		}                                                                                                                                                       \
+		att_formatted lhs_fmt = format_fn(lhs);                                                                                                                 \
+		if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {                                                                                                \
+			lhs_fmt.text = lhs_fmt.buffer;                                                                                                                      \
+		}                                                                                                                                                       \
+		att_formatted rhs_fmt = format_fn(rhs);                                                                                                                 \
+		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {                                                                                                \
+			rhs_fmt.text = rhs_fmt.buffer;                                                                                                                      \
+		}                                                                                                                                                       \
+		char expr[256];                                                                                                                                         \
+		att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);                                                                             \
+		att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);                                                         \
+		if (fatal) {                                                                                                                                            \
+			att_context_abort();                                                                                                                                \
+		}                                                                                                                                                       \
 	}
 
-	att_formatted lhs_fmt = att_format_long_double(lhs);
-	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-		lhs_fmt.text = lhs_fmt.buffer;
-	}
-	att_formatted rhs_fmt = att_format_long_double(rhs);
-	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
-		rhs_fmt.text = rhs_fmt.buffer;
-	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
-	if (fatal) {
-		att_context_abort();
-	}
-}
+ATT_DEFINE_HANDLER(signed, long long, att_compare_values, att_format_signed)
+ATT_DEFINE_HANDLER(unsigned, unsigned long long, att_compare_unsigned_values, att_format_unsigned)
+ATT_DEFINE_HANDLER(double, double, att_compare_double_values, att_format_double)
+ATT_DEFINE_HANDLER(long_double, long double, att_compare_long_double_values, att_format_long_double)
 
 void att_handle_compare_pointer(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const void *lhs, const void *rhs)
 {
 	uintptr_t lhs_addr = (uintptr_t)lhs;
 	uintptr_t rhs_addr = (uintptr_t)rhs;
-	bool passed;
-
-	switch (op) {
-	case ATT_COMP_EQ:
-		passed = lhs_addr == rhs_addr;
-		break;
-	case ATT_COMP_NE:
-		passed = lhs_addr != rhs_addr;
-		break;
-	case ATT_COMP_LT:
-		passed = lhs_addr < rhs_addr;
-		break;
-	case ATT_COMP_LE:
-		passed = lhs_addr <= rhs_addr;
-		break;
-	case ATT_COMP_GT:
-		passed = lhs_addr > rhs_addr;
-		break;
-	case ATT_COMP_GE:
-		passed = lhs_addr >= rhs_addr;
-		break;
-	default:
-		passed = false;
-		break;
-	}
-
+	bool passed = att_compare_pointer_values(op, lhs_addr, rhs_addr);
 	att_context_record_assert(fatal, passed);
 	if (passed) {
 		return;
 	}
-
 	att_formatted lhs_fmt = att_format_pointer(lhs);
 	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
 		lhs_fmt.text = lhs_fmt.buffer;
