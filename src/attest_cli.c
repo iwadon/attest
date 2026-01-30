@@ -58,6 +58,20 @@ static char *att_format_unknown_option(const char *option)
 	return buffer;
 }
 
+static int att_get_cpu_count(void)
+{
+#if defined(_SC_NPROCESSORS_ONLN)
+	long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	return (cpus > 0) ? (int)cpus : 1;
+#elif defined(_WIN32)
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	return (int)sysinfo.dwNumberOfProcessors;
+#else
+	return 1;
+#endif
+}
+
 static char *att_normalize_pattern(const char *pattern)
 {
 	if (!pattern || !*pattern) {
@@ -295,17 +309,7 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 			}
 			/* Handle --jobs=auto */
 			if (strcmp(value, "auto") == 0) {
-				/* Auto-detect CPU count */
-#if defined(_SC_NPROCESSORS_ONLN)
-				long cpus = sysconf(_SC_NPROCESSORS_ONLN);
-				out_opts->jobs = (cpus > 0) ? (int)cpus : 1;
-#elif defined(_WIN32)
-				SYSTEM_INFO sysinfo;
-				GetSystemInfo(&sysinfo);
-				out_opts->jobs = (int)sysinfo.dwNumberOfProcessors;
-#else
-				out_opts->jobs = 1; /* Fallback */
-#endif
+				out_opts->jobs = att_get_cpu_count();
 				continue;
 			}
 			/* Handle --jobs=N */
@@ -319,16 +323,7 @@ int att_cli_parse(int argc, char **argv, att_cli_options *out_opts, char **err_m
 			}
 			/* Handle --jobs=0 as auto */
 			if (parsed == 0) {
-#if defined(_SC_NPROCESSORS_ONLN)
-				long cpus = sysconf(_SC_NPROCESSORS_ONLN);
-				out_opts->jobs = (cpus > 0) ? (int)cpus : 1;
-#elif defined(_WIN32)
-				SYSTEM_INFO sysinfo;
-				GetSystemInfo(&sysinfo);
-				out_opts->jobs = (int)sysinfo.dwNumberOfProcessors;
-#else
-				out_opts->jobs = 1; /* Fallback */
-#endif
+				out_opts->jobs = att_get_cpu_count();
 			} else {
 				out_opts->jobs = (int)parsed;
 			}

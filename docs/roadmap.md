@@ -143,16 +143,18 @@ Internal code quality improvements that don't change public API.
 - [ ] Extract single-line logic
 - [ ] Keep main function as dispatcher
 
-#### R6: CPU Detection Helper
+#### R6: CPU Detection Helper ✓
 
-**Location:** `src/attest_cli.c:298-331`
+**Location:** `src/attest_cli.c:61-73`
 
 **Issue:** Identical CPU detection code duplicated for `--jobs=auto` and `--jobs=0`.
 
 **Solution:** Extract `att_get_cpu_count()` helper.
 
-- [ ] Create helper function
-- [ ] Replace duplicated code
+**Status:** Complete
+
+- [x] Create helper function
+- [x] Replace duplicated code
 
 ### Low Priority (Code Simplification)
 
