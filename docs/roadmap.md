@@ -74,7 +74,7 @@ Internal code quality improvements that don't change public API.
 - [ ] Implement macro-based solution
 - [ ] Verify all assertion types still work
 
-#### R2: Comparison Function Unification
+#### R2: Comparison Function Unification ✓
 
 **Location:** `src/attest_assert.c:813-987`
 
@@ -86,11 +86,11 @@ Internal code quality improvements that don't change public API.
 
 **Solution:** Create type-generic comparison macro.
 
-**Impact:** ~80 lines → ~20 lines
+**Status:** Complete
 
-- [ ] Define `ATT_DEFINE_COMPARE(type)` macro
-- [ ] Replace individual functions
-- [ ] Add tests for edge cases
+- [x] Define `ATT_DEFINE_COMPARE(name, type)` macro
+- [x] Replace all four functions with macro invocations
+- [x] Existing tests cover edge cases
 
 #### R3: Failure Reporting Extraction ✓
 

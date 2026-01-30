@@ -814,45 +814,29 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 	att_context_failure_append_format("    expr: %s\n", expr_detail);
 }
 
-static bool att_compare_values(int op, long long lhs, long long rhs)
-{
-	switch (op) {
-	case ATT_COMP_EQ:
-		return lhs == rhs;
-	case ATT_COMP_NE:
-		return lhs != rhs;
-	case ATT_COMP_LT:
-		return lhs < rhs;
-	case ATT_COMP_LE:
-		return lhs <= rhs;
-	case ATT_COMP_GT:
-		return lhs > rhs;
-	case ATT_COMP_GE:
-		return lhs >= rhs;
-	default:
-		return false;
+#define ATT_DEFINE_COMPARE(name, type)                         \
+	static bool att_compare_##name(int op, type lhs, type rhs) \
+	{                                                          \
+		switch (op) {                                          \
+		case ATT_COMP_EQ:                                      \
+			return lhs == rhs;                                 \
+		case ATT_COMP_NE:                                      \
+			return lhs != rhs;                                 \
+		case ATT_COMP_LT:                                      \
+			return lhs < rhs;                                  \
+		case ATT_COMP_LE:                                      \
+			return lhs <= rhs;                                 \
+		case ATT_COMP_GT:                                      \
+			return lhs > rhs;                                  \
+		case ATT_COMP_GE:                                      \
+			return lhs >= rhs;                                 \
+		default:                                               \
+			return false;                                      \
+		}                                                      \
 	}
-}
 
-static bool att_compare_unsigned_values(int op, unsigned long long lhs, unsigned long long rhs)
-{
-	switch (op) {
-	case ATT_COMP_EQ:
-		return lhs == rhs;
-	case ATT_COMP_NE:
-		return lhs != rhs;
-	case ATT_COMP_LT:
-		return lhs < rhs;
-	case ATT_COMP_LE:
-		return lhs <= rhs;
-	case ATT_COMP_GT:
-		return lhs > rhs;
-	case ATT_COMP_GE:
-		return lhs >= rhs;
-	default:
-		return false;
-	}
-}
+ATT_DEFINE_COMPARE(values, long long)
+ATT_DEFINE_COMPARE(unsigned_values, unsigned long long)
 
 void att_handle_compare_signed(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long long lhs, long long rhs)
 {
@@ -902,25 +886,7 @@ void att_handle_compare_unsigned(int op, const char *assertion, const char *file
 	}
 }
 
-static bool att_compare_double_values(int op, double lhs, double rhs)
-{
-	switch (op) {
-	case ATT_COMP_EQ:
-		return lhs == rhs;
-	case ATT_COMP_NE:
-		return lhs != rhs;
-	case ATT_COMP_LT:
-		return lhs < rhs;
-	case ATT_COMP_LE:
-		return lhs <= rhs;
-	case ATT_COMP_GT:
-		return lhs > rhs;
-	case ATT_COMP_GE:
-		return lhs >= rhs;
-	default:
-		return false;
-	}
-}
+ATT_DEFINE_COMPARE(double_values, double)
 
 void att_handle_compare_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, double lhs, double rhs)
 {
@@ -946,25 +912,7 @@ void att_handle_compare_double(int op, const char *assertion, const char *file, 
 	}
 }
 
-static bool att_compare_long_double_values(int op, long double lhs, long double rhs)
-{
-	switch (op) {
-	case ATT_COMP_EQ:
-		return lhs == rhs;
-	case ATT_COMP_NE:
-		return lhs != rhs;
-	case ATT_COMP_LT:
-		return lhs < rhs;
-	case ATT_COMP_LE:
-		return lhs <= rhs;
-	case ATT_COMP_GT:
-		return lhs > rhs;
-	case ATT_COMP_GE:
-		return lhs >= rhs;
-	default:
-		return false;
-	}
-}
+ATT_DEFINE_COMPARE(long_double_values, long double)
 
 void att_handle_compare_long_double(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, long double lhs, long double rhs)
 {
