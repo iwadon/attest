@@ -10,7 +10,7 @@ This document outlines future plans for attest beyond the current implementation
 | P1 | Complete | Fixtures, skip API, TAP/JUnit output, timeouts, parallel execution |
 | P1.1 | Complete | `NEAR_REL`, `ULP_EQ`, `SCOPED_INFO` |
 | P1.2 | Complete | Negative filters (`--filter=-Pattern`) |
-| Refactoring | Planned | Internal code quality improvements (R1-R10) |
+| Refactoring | Complete | Internal code quality improvements (R1-R10) |
 
 ---
 
@@ -193,27 +193,25 @@ Internal code quality improvements that don't change public API.
 - [x] Replace signed, unsigned, double, long_double with macro
 - [x] Keep pointer, bool, string as-is (special handling required)
 
-#### R9: String Utility Consolidation
+#### R9: String Utility Consolidation — Not needed
 
-**Location:** `src/attest_cli.c:19-44`, `src/attest_assert.c:661`
+**Location:** `src/attest_cli.c:19-44`, `src/attest_assert.c:568`
 
 **Issue:** `att_strdup()`, `att_strndup()`, `att_dup_string()` scattered across files.
 
-**Solution:** Consolidate into `src/internal/attest_string.c` or inline where used once.
+**Analysis:** Functions are `static` and isolated to their respective files. Consolidation would add header dependencies without meaningful benefit. Current design allows per-file link-time optimization.
 
-- [ ] Audit all string utility usage
-- [ ] Consolidate or inline
+**Decision:** No action needed.
 
-#### R10: Fixture Cleanup Unification
+#### R10: Fixture Cleanup Unification — Not needed
 
-**Location:** `src/attest_assert.c:301-343`
+**Location:** `src/attest_assert.c:361-403`
 
-**Issue:** `att_context_fixture_cleanup()` and `att_context_fixture_on_abort()` share identical cleanup logic.
+**Issue:** `att_context_fixture_cleanup()` and `att_context_fixture_on_abort()` share cleanup logic.
 
-**Solution:** Extract `att_context_fixture_cleanup_impl(bool run_teardown)`.
+**Analysis:** Only ~8 lines of actual duplication (state reset). The `_on_abort()` variant intentionally copies to local variables before calling teardown for safety after `longjmp`. Unifying would risk subtle bugs for minimal gain.
 
-- [ ] Extract common implementation
-- [ ] Refactor both functions
+**Decision:** No action needed.
 
 ---
 
