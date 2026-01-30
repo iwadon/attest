@@ -547,40 +547,39 @@ void att_context_timeout_stop(void)
 	g_ctx->timeout_ms = 0;
 }
 #endif
-static const char *att_color_fail(void)
+typedef enum {
+	ATT_COLOR_FAIL,
+	ATT_COLOR_FILE,
+	ATT_COLOR_RESET,
+	ATT_COLOR_BG_DARK_RED,
+	ATT_COLOR_BG_DARK_GREEN,
+	ATT_COLOR_BG_RED,
+	ATT_COLOR_BG_GREEN,
+	ATT_COLOR_COUNT
+} att_color_code;
+
+static const char *const att_color_codes[ATT_COLOR_COUNT] = {
+	[ATT_COLOR_FAIL] = "\033[31m",
+	[ATT_COLOR_FILE] = "\033[90m",
+	[ATT_COLOR_RESET] = "\033[0m",
+	[ATT_COLOR_BG_DARK_RED] = "\033[48;2;80;20;20m",
+	[ATT_COLOR_BG_DARK_GREEN] = "\033[48;2;20;60;20m",
+	[ATT_COLOR_BG_RED] = "\033[48;2;120;30;30m",
+	[ATT_COLOR_BG_GREEN] = "\033[48;2;30;90;30m",
+};
+
+static const char *att_color(att_color_code code)
 {
-	return att_context_color_enabled() ? "\033[31m" : "";
+	return att_context_color_enabled() ? att_color_codes[code] : "";
 }
 
-static const char *att_color_file(void)
-{
-	return att_context_color_enabled() ? "\033[90m" : "";
-}
-
-static const char *att_color_reset(void)
-{
-	return att_context_color_enabled() ? "\033[0m" : "";
-}
-
-static const char *att_color_bg_dark_red(void)
-{
-	return att_context_color_enabled() ? "\033[48;2;80;20;20m" : "";
-}
-
-static const char *att_color_bg_dark_green(void)
-{
-	return att_context_color_enabled() ? "\033[48;2;20;60;20m" : "";
-}
-
-static const char *att_color_bg_red(void)
-{
-	return att_context_color_enabled() ? "\033[48;2;120;30;30m" : "";
-}
-
-static const char *att_color_bg_green(void)
-{
-	return att_context_color_enabled() ? "\033[48;2;30;90;30m" : "";
-}
+static const char *att_color_fail(void) { return att_color(ATT_COLOR_FAIL); }
+static const char *att_color_file(void) { return att_color(ATT_COLOR_FILE); }
+static const char *att_color_reset(void) { return att_color(ATT_COLOR_RESET); }
+static const char *att_color_bg_dark_red(void) { return att_color(ATT_COLOR_BG_DARK_RED); }
+static const char *att_color_bg_dark_green(void) { return att_color(ATT_COLOR_BG_DARK_GREEN); }
+static const char *att_color_bg_red(void) { return att_color(ATT_COLOR_BG_RED); }
+static const char *att_color_bg_green(void) { return att_color(ATT_COLOR_BG_GREEN); }
 
 typedef struct att_formatted {
 	char buffer[128];
