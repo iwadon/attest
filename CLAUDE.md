@@ -78,6 +78,14 @@ The project uses CMake with an out-of-source build strategy:
   - Files: snake_case (`attest_assert.c`, `attest_internal.h`)
 - **Line length**: Target 100 columns for code
 
+### Editing Files with Tabs
+
+This project uses **tabs for indentation**. When using the Edit tool:
+
+1. **Always extract exact text first**: `sed -n 'N,Mp' <file>` to get lines N through M
+2. **Use the extracted output directly** as `old_string` — do not retype or reformat
+3. **Why**: Read tool output may not preserve exact whitespace; regenerating code from memory tends to convert tabs to spaces, causing Edit to fail
+
 ## Documentation
 
 The project documentation is organized in `docs/`:
