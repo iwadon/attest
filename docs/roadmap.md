@@ -130,24 +130,25 @@ Internal code quality improvements that don't change public API.
 - [x] Update CMakeLists.txt (conditional source selection)
 - [x] Add context accessor functions to bridge timeout modules with context state
 
-#### R5: Split `att_handle_string()`
+#### R5: Split `att_handle_string()` ✓
 
-**Location:** `src/attest_assert.c:1256-1353`
+**Location:** `src/attest_assert.c:1041-1101` (original: 1256-1353, reduced by R3)
 
-**Issue:** 100-line function with multiple responsibilities:
+**Issue:** Function with multiple responsibilities:
 1. Equality check
-2. Color formatting
-3. Info stack output
-4. Multi-line diff
-5. Single-line formatting
+2. Info stack output
+3. Multi-line diff
+4. Single-line formatting
 
 **Solution:** Split into focused functions:
 - `att_handle_string_diff()` - multi-line comparison
 - `att_handle_string_simple()` - single-line comparison
 
-- [ ] Extract multi-line diff logic
-- [ ] Extract single-line logic
-- [ ] Keep main function as dispatcher
+**Status:** Complete
+
+- [x] Extract multi-line diff logic
+- [x] Extract single-line logic
+- [x] Keep main function as dispatcher
 
 #### R6: CPU Detection Helper ✓
 

@@ -1038,6 +1038,38 @@ static void att_format_string_diff(FILE *out, const char *expected, const char *
 	att_free_lines(&act_lines);
 }
 
+/* Helper for multi-line string comparison output */
+static void att_handle_string_diff(const att_failure_context *fc, const char *lhs, const char *rhs)
+{
+	att_format_string_diff(fc->out, lhs, rhs);
+}
+
+/* Helper for single-line string comparison output */
+static void att_handle_string_simple(const att_failure_context *fc, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
+{
+	att_formatted lhs_fmt = att_format_string(lhs);
+	if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
+		lhs_fmt.text = lhs_fmt.buffer;
+	}
+	att_formatted rhs_fmt = att_format_string(rhs);
+	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
+		rhs_fmt.text = rhs_fmt.buffer;
+	}
+	if (!fc->suppress) {
+		fprintf(fc->out, "    expected: %s\n", lhs_fmt.text);
+		fprintf(fc->out, "      actual: %s\n", rhs_fmt.text);
+	}
+	att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
+	att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
+
+	char expr[256];
+	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	if (!fc->suppress) {
+		fprintf(fc->out, "    expr: %s\n", expr);
+	}
+	att_context_failure_append_format("    expr: %s\n", expr);
+}
+
 void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
 {
 	bool eq = att_strings_equal(lhs, rhs);
@@ -1053,29 +1085,9 @@ void att_handle_string(int op, const char *assertion, const char *file, int line
 	att_print_info_stack_and_location(&fc, assertion, file, line, fatal);
 
 	if (has_newline && !fc.suppress) {
-		att_format_string_diff(fc.out, lhs, rhs);
+		att_handle_string_diff(&fc, lhs, rhs);
 	} else {
-		att_formatted lhs_fmt = att_format_string(lhs);
-		if (lhs_fmt.text == NULL || lhs_fmt.buffer[0] != '\0') {
-			lhs_fmt.text = lhs_fmt.buffer;
-		}
-		att_formatted rhs_fmt = att_format_string(rhs);
-		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
-			rhs_fmt.text = rhs_fmt.buffer;
-		}
-		if (!fc.suppress) {
-			fprintf(fc.out, "    expected: %s\n", lhs_fmt.text);
-			fprintf(fc.out, "      actual: %s\n", rhs_fmt.text);
-		}
-		att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
-		att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
-
-		char expr[256];
-		att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-		if (!fc.suppress) {
-			fprintf(fc.out, "    expr: %s\n", expr);
-		}
-		att_context_failure_append_format("    expr: %s\n", expr);
+		att_handle_string_simple(&fc, lhs_expr, rhs_expr, lhs, rhs);
 	}
 
 	if (fatal) {
