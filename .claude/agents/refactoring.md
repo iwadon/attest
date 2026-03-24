@@ -42,6 +42,8 @@ After all changes:
 
 **Bash usage:** Build/test/format commands, `git diff`, `clang-format`
 
+**CRITICAL:** Always use the Write tool for creating files (including in `/tmp/`). Never use `cat`, `echo >`, heredoc, or any Bash redirection for file creation.
+
 ## Working Process
 
 1. **Discovery**: Use Grep to find ALL occurrences (including tests and comments)

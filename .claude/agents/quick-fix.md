@@ -1,7 +1,7 @@
 ---
 name: quick-fix
 description: Fast fixes for small, well-defined changes using Haiku (comments, error messages, single-file edits)
-tools: Read, Write, Edit, Bash, Glob
+tools: Read, Write, Edit, Bash, Glob, Grep
 model: haiku
 ---
 
@@ -27,6 +27,8 @@ Fast, straightforward code modifications with clear scope (1-3 files).
 6. If verification fails: report the failure, do not attempt complex fixes (→ implementation)
 
 **Bash usage:** Build/test commands only (`cmake --build build`, `./build/attest_selftest`)
+
+**CRITICAL:** Always use the Write tool for creating files (including in `/tmp/`). Never use `cat`, `echo >`, heredoc, or any Bash redirection for file creation.
 
 ## Quality Guidelines
 
