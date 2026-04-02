@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**attest** is a C11 unit testing framework inspired by GoogleTest, designed for single-threaded execution with automatic test registration. The project uses `_Generic` for type dispatching and supports GCC/Clang constructor attributes for auto-registration.
+**attest** is a C11 unit testing framework inspired by GoogleTest, with automatic test registration and optional parallel test execution. The project uses `_Generic` for type dispatching and supports GCC/Clang constructor attributes for auto-registration. Thread support is auto-detected (C11 threads, POSIX pthreads, Win32 threads) with a single-threaded fallback for platforms without thread support (e.g., Human68k).
 
 ## Build System
 
@@ -51,6 +51,15 @@ The project uses CMake with an out-of-source build strategy:
    - `ATT_FIXTURE_SETUP(FixtureName)` and `ATT_FIXTURE_TEARDOWN(FixtureName)` define setup/teardown hooks
    - `TEST_F(FixtureName, TestName)` runs test with fixture context
    - Fixture data is allocated on the stack and passed to test body
+
+7. **Parallel Execution** (`src/attest_parallel.c`)
+   - Worker thread pool with mutex-protected test queue (POSIX pthreads)
+   - Thread-local test contexts (`ATT_THREAD_LOCAL`) for safe parallel execution
+   - Dummy stubs for non-threaded environments (`ATT_THREADS_NONE`)
+
+8. **Timeout** (`src/internal/attest_timeout_posix.c`, `src/internal/attest_timeout_win32.c`)
+   - Per-test timeout enforcement with platform-specific implementations
+   - POSIX: signal-based (`SIGALRM`); Win32: worker thread + event signaling
 
 ### Public API Surface
 
@@ -120,6 +129,7 @@ When implementing new features:
 - **Test isolation**: Each `TEST()` runs in its own `setjmp` context. Subtests via `att_run_subtest()` run in nested contexts and don't affect parent test execution.
 - **String comparison**: `NULL` == `NULL` is true; `NULL` vs non-NULL is false; output shows `"(null)"` for NULL pointers
 - **Floating-point**: `NEAR` assertions use `fabs(a - b) <= epsilon`; NaN always fails; ±infinity matches only with same sign
+- **Thread support**: Auto-detected via `ATT_THREADS_C11` / `ATT_THREADS_POSIX` / `ATT_THREADS_WIN32` / `ATT_THREADS_NONE`. Test contexts use `ATT_THREAD_LOCAL` for thread safety. Parallel execution currently implemented for POSIX pthreads.
 
 ## Known Issues
 
