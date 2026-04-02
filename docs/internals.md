@@ -10,14 +10,19 @@ attest/
 │   └── attest.h           # Public API
 ├── src/
 │   ├── attest.c           # Entry point, test execution loop
+│   ├── attest_main.c      # main() wrapper calling attest_main()
 │   ├── attest_cli.c       # CLI parsing
 │   ├── attest_assert.c    # Assertion implementations, context management
 │   ├── attest_capture.c   # stderr capture
 │   ├── attest_fixture.c   # Fixture registry and execution
 │   ├── attest_parallel.c  # Parallel execution (worker pool)
 │   └── internal/
-│       ├── attest_internal.h   # Internal types, platform macros
-│       └── attest_registry.c   # Test registration storage
+│       ├── attest_internal.h      # Internal types, platform macros
+│       ├── attest_context.h       # Context types, timeout/fixture accessors
+│       ├── attest_timeout.h       # Platform-agnostic timeout interface
+│       ├── attest_timeout_posix.c # POSIX timeout (SIGALRM, includes Human68k stubs)
+│       ├── attest_timeout_win32.c # Windows timeout (thread + event)
+│       └── attest_registry.c      # Test registration storage
 └── tests/
     └── selftest_main.c    # Framework self-tests
 ```
@@ -97,6 +102,7 @@ Defined in `src/internal/attest_internal.h`:
 |-------|---------|
 | `ATT_PLATFORM_WINDOWS` | Windows (any) |
 | `ATT_PLATFORM_POSIX` | POSIX-compliant (Linux, macOS, etc.) |
+| `ATT_PLATFORM_HUMAN68K` | Sharp X680x0 (Human68k) — single-threaded, no timeout |
 | `ATT_COMPILER_MSVC` | Microsoft Visual C++ |
 | `ATT_COMPILER_GCC_LIKE` | GCC or Clang |
 
@@ -154,7 +160,7 @@ Aligned allocation for context structures:
 
 - Spawns timer thread with `_beginthreadex()`
 - Uses `CreateEvent()` for timeout notification
-- Main thread polls `WaitForSingleObject()` in assertion macros
+- Main thread polls `WaitForSingleObject()` in `att_context_record_assert()`, throttled to every 32 assertions for performance
 - **Limitation:** Infinite loops without assertions won't be interrupted
 
 ---
@@ -200,7 +206,7 @@ Each worker thread has its own `g_ctx`:
 #if defined(ATT_THREADS_C11)
     _Thread_local att_context_state *g_ctx;
 #elif defined(ATT_THREADS_POSIX)
-    // pthread_key_t with pthread_getspecific/setspecific
+    __thread att_context_state *g_ctx;
 #elif defined(ATT_THREADS_WIN32)
     __declspec(thread) att_context_state *g_ctx;
 #endif

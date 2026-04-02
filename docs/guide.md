@@ -147,9 +147,9 @@ TEST(Validation, MultipleInputs) {
         att_run_subtest("check", validate_positive, &values[i], &result);
 
         if (values[i] > 0) {
-            EXPECT_EQ(result.status, ATT_OK);
+            EXPECT_EQ(result.status, ATT_STATUS_OK);
         } else {
-            EXPECT_EQ(result.status, ATT_FAIL);
+            EXPECT_EQ(result.status, ATT_STATUS_FAIL);
         }
     }
 }
@@ -229,6 +229,7 @@ Run tests in parallel for faster execution:
 - Tests must be independent (no shared mutable state)
 - Output is collected per-test and printed in registration order
 - TAP/JUnit formats work with parallel execution
+- **Platform support:** Requires POSIX threads (Linux, macOS). On platforms without thread support (e.g., Human68k), `--jobs` silently falls back to sequential execution.
 
 ---
 
@@ -268,6 +269,8 @@ target_link_libraries(my_tests PRIVATE attest)
 ## Output Formats
 
 ### Default (Human-Readable)
+
+Use `--no-color` to disable colored output (useful for CI environments or log files).
 
 ```bash
 ./test_runner

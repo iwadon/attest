@@ -20,16 +20,15 @@ This document outlines future plans for attest beyond the current implementation
 
 - `long double` support
 - `_Decimal64` / `_Float128` (where available)
-- C89/90 explicit-type macros: `EXPECT_INT_EQ`, `EXPECT_UINT_EQ`, `EXPECT_PTR_EQ`
+- ~~C89/90 explicit-type macros: `EXPECT_INT_EQ`, `EXPECT_UINT_EQ`, `EXPECT_PTR_EQ`~~ (Implemented)
 
-### Custom Assertions
+### Custom Assertions ✓
+
+Implemented as `ATT_ASSERT(expr, fmt, ...)` and `ATT_EXPECT(expr, fmt, ...)` with printf-style formatting.
 
 ```c
-// Simple boolean assertion with custom message
-ATT_ASSERT(expr, "custom message");
-
-// Predicate-based assertion
-ATT_EXPECT(predicate_fn, context);
+ATT_ASSERT(code == 0, "unexpected error code: %d", code);
+ATT_EXPECT(is_valid(ptr), "ptr %p is not valid", ptr);
 ```
 
 ### Advanced Filtering
@@ -38,13 +37,13 @@ ATT_EXPECT(predicate_fn, context);
 - Regex support: `--filter=/Math\\..*Add/`
 - Tag-based filtering: `[slow]`, `[integration]`
 
-### Statistics API
+### Statistics API ✓
 
-Expose internal statistics for programmatic access:
+Implemented as `attest_get_summary()` returning `attest_summary` struct with `total`, `passed`, `failed`, `skipped` fields.
 
 ```c
-const att_summary* attest_summary(void);
-// Contains: total, failed, skipped, execution time, etc.
+attest_summary s = attest_get_summary();
+printf("Ran %d tests, %d passed\n", s.total, s.passed);
 ```
 
 ---

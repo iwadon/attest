@@ -173,6 +173,20 @@ TEST(Pointer, Comparison) {
 - `NEAR_REL`: values near zero (< 1e-15) use absolute comparison
 - `ULP_EQ`: handles denormals and sign transitions correctly
 
+### Custom Assertions
+
+| Macro | Description |
+|-------|-------------|
+| `ATT_ASSERT(expr, fmt, ...)` | Fatal: custom message with printf-style formatting |
+| `ATT_EXPECT(expr, fmt, ...)` | Non-fatal: custom message with printf-style formatting |
+
+```c
+TEST(Validation, Custom) {
+    int code = get_error_code();
+    ATT_ASSERT(code == 0, "unexpected error code: %d", code);
+}
+```
+
 ---
 
 ## Test Control
@@ -250,6 +264,26 @@ TEST(Error, ExpectedFailure) {
 }
 ```
 
+### Subtest Scope API
+
+For fine-grained control over subtest execution:
+
+```c
+TEST(Scope, Example) {
+    att_subtest_scope *scope = att_subtest_scope_enter("my_scope");
+    if (att_subtest_scope_protect(scope) == 0) {
+        ASSERT_TRUE(some_condition());
+    }
+    att_result result;
+    att_subtest_scope_leave(scope, &result);
+    EXPECT_EQ(result.status, ATT_STATUS_OK);
+}
+```
+
+- `att_subtest_scope_enter(name)` — creates and returns a subtest scope
+- `att_subtest_scope_protect(scope)` — macro that calls `setjmp` in the caller's stack frame for fatal assertion handling
+- `att_subtest_scope_leave(scope, result)` — cleans up scope and populates result
+
 ---
 
 ## Output Capture
@@ -282,6 +316,50 @@ ATT_REGISTER_TESTS(
 
 ---
 
+## Types
+
+### att_status
+
+Return type for subtest operations.
+
+```c
+typedef enum {
+    ATT_STATUS_OK = 0,
+    ATT_STATUS_FAIL = 1,
+    ATT_STATUS_ABORTED = 2
+} att_status;
+```
+
+### att_result
+
+Result structure populated by `att_run_subtest()`.
+
+```c
+typedef struct att_result {
+    int total;
+    int failed;
+    int fatal_failures;
+    int nonfatal_failures;
+    int skipped;
+    att_status status;
+} att_result;
+```
+
+### attest_summary
+
+Summary returned by `attest_get_summary()`.
+
+```c
+typedef struct attest_summary {
+    int total;
+    int passed;
+    int failed;
+    int skipped;
+} attest_summary;
+```
+
+---
+
 ## Entry Point
 
 ### attest_main(argc, argv)
@@ -294,12 +372,26 @@ int main(int argc, char **argv) {
 }
 ```
 
+### attest_get_summary()
+
+Returns test execution summary after `attest_main()` completes.
+
+```c
+int main(int argc, char **argv) {
+    int ret = attest_main(argc, argv);
+    attest_summary s = attest_get_summary();
+    printf("Ran %d tests, %d passed\n", s.total, s.passed);
+    return ret;
+}
+```
+
 ---
 
 ## Command-Line Options
 
 | Option | Description |
 |--------|-------------|
+| `-h`, `--help` | Show usage information and exit |
 | `--list` | List all test names and exit |
 | `--filter=<pattern>` | Run only matching tests |
 | `--no-color` | Disable colored output |
