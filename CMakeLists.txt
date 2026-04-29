@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(attest C)
 
-set(CMAKE_C_STANDARD 11)
+# ライブラリ本体は C99 で動作可能。_Generic 等の C11 機能は
+# include/attest/attest.h 内で __STDC_VERSION__ ガード付きで提供される。
+# selftest 側はターゲットごとに C_STANDARD を個別指定する。
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
@@ -92,6 +95,12 @@ if(ATTEST_BUILD_TESTING)
   target_link_libraries(attest_selftest PRIVATE attest)
   target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+  # selftest_main.c は _Generic を使うため C11 を要求する
+  set_target_properties(attest_selftest PROPERTIES
+      C_STANDARD 11
+      C_STANDARD_REQUIRED ON
+  )
+
   # Link math library on Unix-like systems and Human68k (for nextafter in ULP tests)
   if(UNIX OR ATTEST_TARGET_HUMAN68K)
       target_link_libraries(attest_selftest PRIVATE m)
@@ -103,6 +112,23 @@ if(ATTEST_BUILD_TESTING)
   endif()
 
   add_test(NAME attest_selftest COMMAND attest_selftest)
+
+  # C99スモークテスト: 明示型マクロのみで主要機能を検証する
+  add_executable(attest_selftest_c99
+      tests/selftest_c99.c
+  )
+  target_link_libraries(attest_selftest_c99 PRIVATE attest)
+  set_target_properties(attest_selftest_c99 PROPERTIES
+      C_STANDARD 99
+      C_STANDARD_REQUIRED ON
+  )
+  if(UNIX OR ATTEST_TARGET_HUMAN68K)
+      target_link_libraries(attest_selftest_c99 PRIVATE m)
+  endif()
+  if(NOT WIN32)
+      target_compile_definitions(attest_selftest_c99 PRIVATE _POSIX_C_SOURCE=200809L)
+  endif()
+  add_test(NAME attest_selftest_c99 COMMAND attest_selftest_c99)
 
   # Timeout test executable (for manual testing)
   add_executable(attest_timeout_test

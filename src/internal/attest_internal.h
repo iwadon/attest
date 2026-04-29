@@ -4,9 +4,6 @@
 /* Include attest.h first to ensure _POSIX_C_SOURCE is defined before any system headers */
 #include "attest/attest.h"
 
-/* Forward declarations to avoid circular dependencies */
-typedef struct att_test_result att_test_result;
-
 /* ========================================================================
  * Platform Detection
  * ======================================================================== */
