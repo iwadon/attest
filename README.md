@@ -106,6 +106,19 @@ on Japanese Windows, and the `Fixture.SetupTeardownCounters` self-test was
 rewritten to be independent of test registration order so it survives
 `--shuffle`.
 
+#### Windows 11 (x64)
+
+Verified natively on Windows 11 Pro (10.0.26200) with Visual Studio Community
+2026 (18.4.11702.344) under both `Debug` and `Release` configurations, built
+via the `Ninja Multi-Config` generator. `attest_selftest` reports 74 tests
+(73 passed / 1 skipped) and `attest_selftest_c99` reports 12 tests
+(11 passed / 1 skipped).
+
+| Compiler | Version | Threading | Status |
+|----------|---------|-----------|--------|
+| MSVC `cl` | 19.50.35728 (toolset 14.50.35717) | Win32 threads + `__declspec(thread)` | ✅ Pass |
+| `clang-cl` | 20.1.8 (`x86_64-pc-windows-msvc`, VS-bundled LLVM) | C11 `<threads.h>` + `_Thread_local` | ✅ Pass |
+
 ## Cross-Compiling for Human68k (Sharp X680x0)
 
 attest can be cross-compiled for Human68k using the [elf2x68k](https://github.com/yunkya2/elf2x68k) toolchain:

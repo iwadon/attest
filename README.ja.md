@@ -104,6 +104,19 @@ Parallels Desktop の VM 上で Visual Studio Community 2026
 C4819 を抑制し、`Fixture.SetupTeardownCounters` セルフテストはテスト登録順に
 依存しない形へ書き換えて `--shuffle` でも安定するようにしました。
 
+#### Windows 11 (x64)
+
+Windows 11 Pro（10.0.26200）上で Visual Studio Community 2026
+（18.4.11702.344）の `Debug` / `Release` 両構成をネイティブに確認しています。
+ジェネレータは `Ninja Multi-Config` を使用しました。
+`attest_selftest` は 74 件（73 passed / 1 skipped）、`attest_selftest_c99` は
+12 件（11 passed / 1 skipped）でパスします。
+
+| コンパイラ | バージョン | スレッディング | 結果 |
+|-----------|-----------|---------------|------|
+| MSVC `cl` | 19.50.35728（toolset 14.50.35717） | Win32 threads + `__declspec(thread)` | ✅ パス |
+| `clang-cl` | 20.1.8（`x86_64-pc-windows-msvc`、VS 同梱の LLVM） | C11 `<threads.h>` + `_Thread_local` | ✅ パス |
+
 ## Human68k（Sharp X680x0）向けクロスビルド
 
 [elf2x68k](https://github.com/yunkya2/elf2x68k) ツールチェインを使って Human68k 向けにクロスコンパイルできます。
