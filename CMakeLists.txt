@@ -44,8 +44,10 @@ endif()
 
 # Platform-specific compile definitions
 if(WIN32)
-    # Windows: Suppress MSVC security warnings
-    target_compile_definitions(attest PRIVATE
+    # Windows: Suppress MSVC security warnings (also affects consumers such
+    # as the test binaries, where clang-cl warns about deprecated CRT calls
+    # like getenv that MSVC's own headers tag with __declspec(deprecated)).
+    target_compile_definitions(attest PUBLIC
         _CRT_SECURE_NO_WARNINGS
     )
     # MSVC: Treat sources and execution charset as UTF-8 to avoid C4819 on
