@@ -54,6 +54,24 @@ int main(int argc, char **argv) {
 | Clang | 3.1+ | ARM64で推奨 |
 | MSVC | 2015+ | 自動登録に `.CRT$XCU` セクションを使用 |
 
+## Human68k（Sharp X680x0）向けクロスビルド
+
+[elf2x68k](https://github.com/yunkya2/elf2x68k) ツールチェインを使って Human68k 向けにクロスコンパイルできます。
+
+```bash
+cmake -S . -B build-h68k -DCMAKE_TOOLCHAIN_FILE=cmake/human68k.cmake
+cmake --build build-h68k
+```
+
+ツールチェインのインストール先は以下の順で自動検出されます。
+
+1. `-DELF2X68K_ROOT=<path>`（CMakeオプション）
+2. 環境変数 `ELF2X68K_ROOT`
+3. `brew --prefix elf2x68k`（Homebrewユーザはゼロ設定で動作）
+4. `PATH` 上の `m68k-xelf-gcc` の親ディレクトリ
+
+いずれも見つからない場合、インストール手順を示すエラーメッセージで configure が失敗します。
+
 ## ライセンス
 
 MIT No Attribution (MIT-0)。詳細は [LICENSE](LICENSE) を参照してください。

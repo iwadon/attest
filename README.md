@@ -54,6 +54,24 @@ int main(int argc, char **argv) {
 | Clang | 3.1+ | Recommended for ARM64 |
 | MSVC | 2015+ | Uses `.CRT$XCU` for auto-registration |
 
+## Cross-Compiling for Human68k (Sharp X680x0)
+
+attest can be cross-compiled for Human68k using the [elf2x68k](https://github.com/yunkya2/elf2x68k) toolchain:
+
+```bash
+cmake -S . -B build-h68k -DCMAKE_TOOLCHAIN_FILE=cmake/human68k.cmake
+cmake --build build-h68k
+```
+
+The toolchain root is auto-detected in this order:
+
+1. `-DELF2X68K_ROOT=<path>` (CMake option)
+2. `ELF2X68K_ROOT` environment variable
+3. `brew --prefix elf2x68k` (Homebrew users — zero configuration)
+4. Parent directory of `m68k-xelf-gcc` found on `PATH`
+
+If none of these resolve, configuration fails with a message pointing to the install instructions.
+
 ## License
 
 MIT No Attribution (MIT-0). See [LICENSE](LICENSE) for details.
