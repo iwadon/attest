@@ -56,7 +56,9 @@ attest is C99 by default and uses C11 `_Generic` opportunistically (gated by `__
 | Clang | 3.1+ | Same |
 | MSVC | 2015+ | Uses `.CRT$XCU` for auto-registration |
 
-### Verified versions (Apple Silicon, macOS 26)
+### Verified platforms
+
+#### Apple Silicon, macOS 26
 
 The matrix below was verified against the self-test suite (74 tests) on
 `arm64-apple-darwin` with `Release` builds (`-O3`).
@@ -74,6 +76,35 @@ sigsetjmp/longjmp miscompilation). The root cause was actually a cross-frame
 `setjmp` in attest itself, which is now fixed by macro-expanding the
 test-runner `setjmp` directly into the caller's stack frame. No optimization
 flag overrides are required on any of the verified toolchains.
+
+#### Ubuntu 26.04 (aarch64)
+
+Verified on a Parallels Desktop VM with both `Debug` and `Release` builds.
+`attest_selftest` reports 74 tests (73 passed / 1 skipped) and
+`attest_selftest_c99` reports 12 tests (11 passed / 1 skipped).
+
+| Compiler | Version | Status |
+|----------|---------|--------|
+| GCC | 15.2.0 | ✅ Pass |
+| Clang | 21.1.8 | ✅ Pass |
+
+#### Windows 11 (arm64)
+
+Verified on a Parallels Desktop VM with Visual Studio Community 2026
+(18.2.111415.280) under both `Debug` and `Release` configurations. MSYS2 has
+not been tested. `attest_selftest` reports 74 tests (73 passed / 1 skipped)
+and `attest_selftest_c99` reports 12 tests (11 passed / 1 skipped).
+
+| Compiler | Version | Threading | Status |
+|----------|---------|-----------|--------|
+| MSVC `cl` | 19.50.35723.0 (toolset 14.50.35717) | Win32 threads + `__declspec(thread)` | ✅ Pass |
+| `clang-cl` | 20.1.8 (`aarch64-pc-windows-msvc`) | C11 `<threads.h>` + `_Thread_local` | ✅ Pass |
+
+Two CP932-locale specific issues were addressed in the course of verification:
+MSVC's `/utf-8` is now applied PUBLIC on the `attest` target to silence C4819
+on Japanese Windows, and the `Fixture.SetupTeardownCounters` self-test was
+rewritten to be independent of test registration order so it survives
+`--shuffle`.
 
 ## Cross-Compiling for Human68k (Sharp X680x0)
 
