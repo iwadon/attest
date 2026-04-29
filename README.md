@@ -88,6 +88,18 @@ Verified on a Parallels Desktop VM with both `Debug` and `Release` builds.
 | GCC | 15.2.0 | ✅ Pass |
 | Clang | 21.1.8 | ✅ Pass |
 
+#### Ubuntu 24.04 (x86_64, WSL2)
+
+Verified on WSL2 (Linux 6.6.87.2-microsoft-standard-WSL2) with both `Debug`
+and `Release` builds. `attest_selftest` reports 74 tests
+(73 passed / 1 skipped) and `attest_selftest_c99` reports 12 tests
+(11 passed / 1 skipped).
+
+| Compiler | Version | Status |
+|----------|---------|--------|
+| GCC | 13.3.0 | ✅ Pass |
+| Clang | 18.1.3 | ✅ Pass |
+
 #### Windows 11 (arm64)
 
 Verified on a Parallels Desktop VM with Visual Studio Community 2026
