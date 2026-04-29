@@ -51,18 +51,30 @@ attest/
 **File:** `src/attest_assert.c`
 
 - `_Generic` macro dispatches to type-specific handlers:
-  - `att_handle_compare_signed` — signed integers
-  - `att_handle_compare_unsigned` — unsigned integers
-  - `att_handle_compare_double` — floating-point
-  - `att_handle_compare_pointer` — pointers
+  - `att_handle_compare_signed` — signed integers (cast to `long long`)
+  - `att_handle_compare_unsigned` — unsigned integers (cast to `unsigned long long`)
+  - `att_handle_compare_double` — `float` / `double`
+  - `att_handle_compare_long_double` — `long double`
+  - `att_handle_compare_pointer` — pointers (compared as `uintptr_t`)
 - Context state tracks: current test, failure counts, longjmp buffer, timeout state, info stack
+- The signed / unsigned / double / long-double comparator, formatter, and
+  handler families share a single textual template each. They are emitted
+  by file-local `ATT_DEFINE_COMPARE`, `ATT_DEFINE_FORMATTER`, and
+  `ATT_DEFINE_HANDLER` macros (see `src/attest_assert.c`), so adding a new
+  numeric type reduces to one macro invocation per family. Pointer, bool,
+  and string handlers stay hand-written because they need bespoke
+  formatting (hex addresses, `(null)` sentinels, multi-line diff output).
 
 ### CLI Parser
 
 **File:** `src/attest_cli.c`
 
 - Parses `--list`, `--filter`, `--no-color`, `--timeout-ms`, `--shuffle`, `--jobs`, `--format`, `--output`
-- Filter syntax: wildcards (`*`, `?`), shorthand (`Suite` → `Suite.*`), multiple patterns (`;` separator)
+- `--format` accepts `default`, `tap`, or `junit`; `--output` is only valid
+  with `--format=junit` and otherwise produces an error
+- `--jobs=auto` and `--jobs=0` both resolve to the detected CPU count via
+  `att_get_cpu_count()` (sysconf on POSIX, `GetSystemInfo` on Windows)
+- Filter syntax: wildcards (`*`, `?`), shorthand (`Suite` → `Suite.*`), multiple patterns (`;` separator), negative filters (`-Pattern`)
 - Unknown options → exit code 2
 
 ### Fixtures
@@ -89,6 +101,13 @@ attest/
 - Each worker has thread-local context (`g_ctx`)
 - Results collected per-test, output in registration order
 - Mutex-protected work queue for test distribution
+- Compiled and entered only under `ATT_THREADS_POSIX`. Other thread backends
+  (`ATT_THREADS_C11`, `ATT_THREADS_WIN32`, `ATT_THREADS_NONE`) currently fall
+  through to the sequential runner regardless of `--jobs=N`.
+- The parallel runner emits only the default human-readable format. TAP
+  per-test lines and JUnit XML output are produced exclusively by the
+  sequential path, so requesting `--format=tap` or `--format=junit` together
+  with `--jobs > 1` is not supported.
 
 ---
 
@@ -158,10 +177,23 @@ Aligned allocation for context structures:
 
 ### Windows
 
-- Spawns timer thread with `_beginthreadex()`
-- Uses `CreateEvent()` for timeout notification
-- Main thread polls `WaitForSingleObject()` in `att_context_record_assert()`, throttled to every 32 assertions for performance
-- **Limitation:** Infinite loops without assertions won't be interrupted
+- Spawns a dedicated timer thread with `_beginthreadex()`
+- The timer thread waits on a manual-reset `CreateEvent()` handle via
+  `WaitForSingleObject(event, timeout_ms)`. `WAIT_TIMEOUT` means the deadline
+  expired — the thread then sets the `triggered` flag and re-signals the
+  event so the main thread can observe it. `WAIT_OBJECT_0` means
+  `att_timeout_stop()` cancelled the wait early.
+- The main thread polls the same event from `att_context_record_assert()`
+  using `WaitForSingleObject(event, 0)`, throttled to once every 32 assertions
+  to keep the per-assertion cost negligible. On a hit, it calls
+  `att_context_abort()` to longjmp back to the test runner.
+- **Limitation:** Because the main thread only learns about the timeout when
+  it next executes an assertion macro, a tight loop with no assertions cannot
+  be interrupted on Windows. The timer thread itself still fires, but the
+  failure is recorded only when control returns through an assertion or to
+  `att_context_end()`. For long-running code paths, ensure periodic
+  assertions (or `EXPECT_TRUE(true)` checkpoints) so the timeout can take
+  effect.
 
 ---
 

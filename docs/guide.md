@@ -228,8 +228,13 @@ Run tests in parallel for faster execution:
 **Notes:**
 - Tests must be independent (no shared mutable state)
 - Output is collected per-test and printed in registration order
-- TAP/JUnit formats work with parallel execution
-- **Platform support:** Requires POSIX threads (Linux, macOS). On platforms without thread support (e.g., Human68k), `--jobs` silently falls back to sequential execution.
+- **Format restrictions:** Parallel execution currently emits only the default
+  human-readable format. The TAP per-test lines (`ok N` / `not ok N`) and the
+  JUnit XML report are not produced when `--jobs > 1`; if you need those
+  formats, run with `--jobs=1` (the default) so the sequential path is used.
+- **Platform support:** Requires POSIX threads (Linux, macOS). On platforms
+  without thread support (e.g., Human68k) or on Windows, `--jobs` silently
+  falls back to sequential execution.
 
 ---
 
@@ -264,6 +269,15 @@ FetchContent_MakeAvailable(attest)
 target_link_libraries(my_tests PRIVATE attest)
 ```
 
+### Bundled `attest_runner`
+
+The top-level CMake build also produces an `attest_runner` executable
+(`src/attest_main.c`) that simply calls `attest_main()`. It exists so the
+library's link surface can be verified standalone, and as a minimal
+"copy this `main()`" example. It contains no tests of its own — link your
+own translation units to drive it, or use your own `main()` and skip the
+runner entirely.
+
 ---
 
 ## Output Formats
@@ -276,17 +290,28 @@ Use `--no-color` to disable colored output (useful for CI environments or log fi
 ./test_runner
 ```
 
+The default formatter is intentionally terse: passing tests produce no per-test
+output. Only failures and skips are reported, followed by a final summary.
+
 ```
 [==========] Running 10 tests from 3 suites.
-[ RUN      ] Math.Addition
-[       OK ] Math.Addition
-[ RUN      ] Math.Division
 [  FAILED  ] Math.Division
   test.c:15: EXPECT_EQ(result, 2) failed.
     expected: 2
       actual: 3
-[==========] 10 tests ran. 1 failures.
+    expr: result=3, 2=2
+[  SKIPPED ] Platform.LinuxOnly
+  reason: Linux only
+[==========] 10 tests ran. 1 failures, 1 skipped.
+[  FAILED  ] 1 tests.
+[  PASSED  ] 8 tests.
+[  SKIPPED ] 1 tests.
 ```
+
+When tests run in parallel (`--jobs=N` with `N > 1`), each test additionally
+emits `[ RUN      ]` / `[       OK ]` / `[  FAILED  ]` markers as it completes,
+to make worker progress visible. Sequential runs omit those markers for
+brevity.
 
 ### TAP 13
 

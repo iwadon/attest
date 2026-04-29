@@ -38,7 +38,15 @@ TEST_F(MyFixture, Example) {
 
 ### ATT_FIXTURE_SETUP(Type) / ATT_FIXTURE_TEARDOWN(Type)
 
-Define setup and teardown functions for a fixture. Inside these functions, `att_fixture` is a pointer to the fixture instance.
+Define setup and teardown functions for a fixture. Inside these functions,
+`att_fixture` is a pointer to the fixture instance. Both hooks are optional
+and registered through constructor attributes — the same `Type` may be reused
+across many `TEST_F`s.
+
+The fixture instance is freshly zero-initialized for every `TEST_F` (each
+test gets its own copy). Teardown is **always** invoked on exit, even when
+the test body aborts via `ASSERT_*`, calls `ATT_SKIP`, or hits a timeout —
+this is the documented place to release resources allocated during setup.
 
 ---
 
@@ -170,7 +178,10 @@ TEST(Pointer, Comparison) {
 **Special cases:**
 - NaN always fails
 - ±Infinity must match exactly (same sign)
-- `NEAR_REL`: values near zero (< 1e-15) use absolute comparison
+- `NEAR_REL`: when both `|lhs|` and `|rhs|` are below `1e-15`, the comparison
+  switches to an absolute test using `rel_eps` itself as the absolute
+  tolerance (i.e. `|lhs - rhs| <= rel_eps`). This avoids dividing by an
+  effectively-zero magnitude.
 - `ULP_EQ`: handles denormals and sign transitions correctly
 
 ### Custom Assertions
@@ -247,10 +258,23 @@ static void my_subtest(void *user) {
 TEST(Validation, Subtest) {
     int value = 42;
     att_result result;
-    att_run_subtest("check_positive", my_subtest, &value, &result);
+    att_status status = att_run_subtest("check_positive", my_subtest, &value, &result);
+    EXPECT_EQ(status, ATT_STATUS_OK);
     EXPECT_EQ(result.failed, 0);
 }
 ```
+
+**Signature:**
+
+```c
+att_status att_run_subtest(const char *name,
+                           void (*fn)(void *), void *user,
+                           att_result *out);
+```
+
+The return value mirrors `out->status`, so either form is fine. `out` may be
+non-NULL to receive detailed counters; pass `NULL` if only the status is
+needed.
 
 ### ATT_EXPECT_SUBTEST_FAILS(name, block, min, max)
 
@@ -290,7 +314,9 @@ TEST(Scope, Example) {
 
 ### att_capture_begin() / att_capture_end(out)
 
-Capture stderr output for validation. Non-reentrant (no nesting).
+Capture stderr output for validation. Non-reentrant (no nesting). Both
+functions return `0` on success and `-1` on error or when capture is
+unsupported on the current platform.
 
 ```c
 att_captured cap;
@@ -300,6 +326,13 @@ att_capture_end(&cap);
 // cap.data contains "test output", cap.size is length
 free(cap.data);
 ```
+
+**Platform support:** capture relies on `dup`/`dup2`. On Human68k those APIs
+are unavailable, so `att_capture_begin()` and `att_capture_end()` are
+compiled as no-ops that return `-1`. Tests that depend on
+`ATT_EXPECT_SUBTEST_FAILS` (which uses capture internally to silence
+expected failure noise) still validate the failure counts on Human68k, but
+the captured-output replay step is skipped.
 
 ---
 
@@ -395,14 +428,23 @@ int main(int argc, char **argv) {
 | `--list` | List all test names and exit |
 | `--filter=<pattern>` | Run only matching tests |
 | `--no-color` | Disable colored output |
-| `--timeout-ms=<ms>` | Set per-test timeout in milliseconds |
-| `--shuffle` | Randomize test execution order |
+| `--timeout-ms=<ms>` | Set per-test timeout in milliseconds (POSIX: signal-based; Windows: polled at every assertion) |
+| `--shuffle` | Randomize test execution order (seed derived from `time(NULL)`) |
 | `--shuffle=<seed>` | Shuffle with specific seed for reproducibility |
-| `--jobs=<N>` | Run tests in parallel with N workers |
-| `--jobs=auto` | Use CPU core count for parallelism |
+| `--jobs=<N>` | Run tests in parallel with N workers (`--jobs=1` keeps the sequential runner) |
+| `--jobs=auto`, `--jobs=0` | Use detected CPU core count for parallelism |
+| `--format=default` | Human-readable output (the default) |
 | `--format=tap` | Output in TAP 13 format |
 | `--format=junit` | Output in JUnit XML format |
-| `--output=<path>` | Write JUnit XML to file (default: `test_detail.xml`) |
+| `--output=<path>` | Write JUnit XML to file (default: `test_detail.xml`; requires `--format=junit`) |
+
+**Parallel runner caveats:** parallel execution is compiled in only on
+POSIX-thread platforms (Linux, macOS). On Windows or Human68k, `--jobs > 1`
+silently falls back to the sequential runner. Even on POSIX, the parallel
+runner currently emits only the default human-readable format — combining it
+with `--format=tap` or `--format=junit` suppresses per-test output and skips
+the JUnit XML write, so use `--jobs=1` (the default) when you need those
+formats.
 
 ### Filter Syntax
 
