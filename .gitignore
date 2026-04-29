@@ -94,8 +94,9 @@ CMakeUserPresets.json
 
 
 # This project specifically ignores:
+.claude/scheduled_tasks.lock
 .claude/session-state.md
 .claude/settings.local.json
 .docqa/
-build/
 build-*/
+build/
