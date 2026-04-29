@@ -163,11 +163,6 @@ void att_context_begin(const att_test_case *test, bool color_enabled, att_output
 	g_ctx->phase = ATT_CONTEXT_PHASE_TEST;
 }
 
-int att_context_protect(void)
-{
-	return att_setjmp(g_ctx->abort_env);
-}
-
 void att_context_end(att_test_result *out_result)
 {
 	if (g_ctx->timeout_triggered) {

@@ -26,7 +26,11 @@ typedef enum att_context_phase {
 } att_context_phase;
 
 void att_context_begin(const att_test_case *test, bool color_enabled, att_output_format format);
-int att_context_protect(void);
+/* Must be a macro to avoid stack frame issues with setjmp/longjmp.
+ * setjmp must be called in the same stack frame that will handle longjmp,
+ * so wrapping it in a function would corrupt the jump target as soon as the
+ * wrapper returns. att__get_abort_env_ptr() is declared in attest/attest.h. */
+#define att_context_protect() att_setjmp(*att__get_abort_env_ptr())
 void att_context_end(att_test_result *out_result);
 void att_context_record_assert(bool fatal, bool passed);
 void att_context_register_failure(bool fatal);

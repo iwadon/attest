@@ -48,11 +48,31 @@ int main(int argc, char **argv) {
 
 ## コンパイラサポート
 
-| コンパイラ | バージョン | 備考 |
-|-----------|-----------|------|
-| GCC | 5.0+ | ⚠️ GCC 14.2.0 ARM64は既知の問題あり、Clang推奨 |
-| Clang | 3.1+ | ARM64で推奨 |
+attest 本体は C99 で動作し、C11 の `_Generic` は `__STDC_VERSION__` ガードで適応的に使用します。
+
+| コンパイラ | 最低バージョン | 備考 |
+|-----------|---------------|------|
+| GCC | 5.0+ | `__attribute__((constructor))` を要求 |
+| Clang | 3.1+ | 同上 |
 | MSVC | 2015+ | 自動登録に `.CRT$XCU` セクションを使用 |
+
+### 動作確認済みバージョン（Apple Silicon, macOS 26）
+
+`arm64-apple-darwin` 上で `Release`（`-O3`）ビルドし、selftest（74 件）を通したものを以下に列挙します。
+
+| コンパイラ | バージョン | 結果 | 備考 |
+|-----------|-----------|------|------|
+| Apple Clang | 21（Xcode 同梱） | ✅ パス | リファレンスとなる toolchain |
+| Homebrew Clang | 16 / 17 / 18 / 19 / 20 / 21 / 22 | ✅ パス | |
+| Homebrew Clang | 14 / 15 | ⚠️ リンク失敗 | Homebrew のボトルが `--syslibroot=…/CommandLineTools/SDKs/MacOSX14.sdk` をハードコードしているため。Command Line Tools を更新するか、`-Wl,-syslibroot,$(xcrun --show-sdk-path)` を渡すと解消する。コンパイラ自体は健全。 |
+| Homebrew GCC | 12 / 13 / 14 / 15 | ✅ パス | |
+| Homebrew GCC | 11 | ⚠️ リンク失敗 | Clang 14/15 と同じ SDK 固定問題。 |
+
+過去のリリースでは ARM64 上の GCC 14.2 で sigsetjmp/longjmp の誤コンパイルを避けるため
+`-O1` ワークアラウンドを必要としていましたが、根本原因は attest 側の
+クロスフレーム `setjmp`（呼び出し元のフレームと異なる関数で `setjmp` を行っていたこと）でした。
+現在はテストランナーの `setjmp` を呼び出し元フレームへマクロ展開する形で根治しており、
+動作確認済みのいずれの toolchain でも最適化フラグの上書きは不要です。
 
 ## Human68k（Sharp X680x0）向けクロスビルド
 

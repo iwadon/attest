@@ -133,20 +133,10 @@ When implementing new features:
 
 ## Known Issues
 
-### GCC 14.2.0 ARM64 sigsetjmp/siglongjmp Bug
+### Cross-frame setjmp in test runner (Resolved)
 
-**Platform**: ARM64/aarch64 (Ubuntu 25.04)
-**Compiler**: GCC 14.2.0
-**Symptom**: SIGILL crash when running full test suite, individual tests work fine
-**Cause**: GCC 14.2.0 ARM64 backend has a bug in `sigsetjmp/siglongjmp` implementation that corrupts the return address (x30 register) and stack frame
-**Workaround**:
-1. **Recommended**: Use Clang instead of GCC on ARM64 platforms
-2. **Alternative**: Use GCC 13.x or wait for GCC 14.3+ with fix
-3. **Applied mitigations** (partial workaround):
-   - `sigjmp_buf` with explicit 16-byte alignment and `volatile` qualifier
-   - Structure and static variable alignment attributes
-   - `-fno-omit-frame-pointer` and `-fno-optimize-sibling-calls` flags
-   - `-O1` optimization level for GCC 14.x on ARM64 (automatic)
-   - C11 `aligned_alloc()` for heap-allocated contexts on Linux
+Earlier releases attributed sporadic ARM64 SIGILL/SIGFPE crashes to a "GCC 14.2.0 sigsetjmp bug" and shipped an `-O1` workaround. A wider compiler audit (GCC 12–15, Clang 14–22 on Apple Silicon) showed the actual root cause was attest itself: `att_context_protect()` was a function that called `setjmp` and returned, leaving the test runner with a `jmp_buf` whose stack frame was already gone. This is undefined behavior, and modern GCC/Clang (12+, Clang 22) optimize on it aggressively.
 
-**Implementation**: See `src/attest_assert.c:17-42` and `CMakeLists.txt:24-39`
+**Fix**: `att_context_protect()` is now a macro in `src/internal/attest_context.h` that expands to `att_setjmp(*att__get_abort_env_ptr())`, so `setjmp` is called directly in the test-runner's stack frame. The `-O1` workaround in `CMakeLists.txt` and the `-fno-omit-frame-pointer`/`-fno-optimize-sibling-calls` mitigations have been removed.
+
+The same constraint already applied to subtests (`att_subtest_scope_protect`) — see the comment in `include/attest/attest.h`.

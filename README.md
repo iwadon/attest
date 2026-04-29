@@ -48,11 +48,32 @@ int main(int argc, char **argv) {
 
 ## Compiler Support
 
-| Compiler | Version | Notes |
+attest is C99 by default and uses C11 `_Generic` opportunistically (gated by `__STDC_VERSION__`).
+
+| Compiler | Minimum | Notes |
 |----------|---------|-------|
-| GCC | 5.0+ | ⚠️ GCC 14.2.0 ARM64 has known issues; use Clang |
-| Clang | 3.1+ | Recommended for ARM64 |
+| GCC | 5.0+ | Requires `__attribute__((constructor))` |
+| Clang | 3.1+ | Same |
 | MSVC | 2015+ | Uses `.CRT$XCU` for auto-registration |
+
+### Verified versions (Apple Silicon, macOS 26)
+
+The matrix below was verified against the self-test suite (74 tests) on
+`arm64-apple-darwin` with `Release` builds (`-O3`).
+
+| Compiler | Version | Status | Notes |
+|----------|---------|--------|-------|
+| Apple Clang | 21 (Xcode-shipped) | ✅ Pass | Reference toolchain |
+| Homebrew Clang | 16 / 17 / 18 / 19 / 20 / 21 / 22 | ✅ Pass | |
+| Homebrew Clang | 14 / 15 | ⚠️ Link failure | Homebrew bottles pin `--syslibroot=…/CommandLineTools/SDKs/MacOSX14.sdk`. Update Command Line Tools or pass `-Wl,-syslibroot,$(xcrun --show-sdk-path)`. Compiler itself is fine. |
+| Homebrew GCC | 12 / 13 / 14 / 15 | ✅ Pass | |
+| Homebrew GCC | 11 | ⚠️ Link failure | Same SDK pinning issue as Clang 14/15. |
+
+Earlier releases of attest needed an `-O1` workaround on ARM64 GCC 14.2 (a
+sigsetjmp/longjmp miscompilation). The root cause was actually a cross-frame
+`setjmp` in attest itself, which is now fixed by macro-expanding the
+test-runner `setjmp` directly into the caller's stack frame. No optimization
+flag overrides are required on any of the verified toolchains.
 
 ## Cross-Compiling for Human68k (Sharp X680x0)
 

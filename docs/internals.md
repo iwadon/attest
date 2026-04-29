@@ -222,19 +222,40 @@ Each worker thread has its own `g_ctx`:
 
 ## Known Issues
 
-### GCC 14.2.0 ARM64 sigsetjmp Bug
+### Cross-frame setjmp in the test runner (Resolved)
 
-**Platform:** ARM64/aarch64 (Ubuntu 25.04)
-**Symptom:** SIGILL crash when running full test suite
-**Cause:** GCC 14.2.0 ARM64 backend corrupts x30 register in `sigsetjmp/siglongjmp`
+**Symptom:** SIGILL / SIGFPE / SIGSEGV when running the full self-test suite
+on Apple Silicon, observed across GCC 12.5, 13.4, 15.2 and Clang 22.1 at
+`-O2` and above. GCC 14.2 (an earlier point release) and a regression in
+Clang 22 made this very visible; previous releases attributed the symptom to
+"GCC 14.2.0 sigsetjmp bug" and shipped an `-O1` ARM64 workaround in
+`CMakeLists.txt`.
 
-**Workarounds:**
-1. Use Clang on ARM64 (recommended)
-2. Use GCC 13.x
-3. Applied mitigations in code:
-   - 16-byte aligned `sigjmp_buf` with `volatile` qualifier
-   - `-fno-omit-frame-pointer` and `-fno-optimize-sibling-calls`
-   - `-O1` for GCC 14.x on ARM64
+**Root cause:** attest's own test runner. The original `att_context_protect()`
+was an out-of-line function in `src/attest_assert.c` that called `setjmp`
+and returned. By the time the runner in `src/attest.c` (or
+`src/attest_parallel.c`) tried to `longjmp` back, the `jmp_buf` referred to
+a stack frame that no longer existed. This is undefined behavior, and
+modern GCC/Clang optimizers happily reason on the assumption that it never
+happens — so they hoist or eliminate code that the runner relied on.
+
+**Fix:** `att_context_protect()` is now a macro in
+`src/internal/attest_context.h`:
+
+```c
+#define att_context_protect() att_setjmp(*att__get_abort_env_ptr())
+```
+
+Both `attest.c` and `attest_parallel.c` invoke this macro inside the same
+stack frame that handles the `longjmp`, so the `jmp_buf` stays valid.
+The `-O1` workaround, the `-fno-omit-frame-pointer` /
+`-fno-optimize-sibling-calls` mitigations, and the explicit 16-byte
+`sigjmp_buf` alignment guards have all been removed; verified across
+GCC 12–15 and Clang 16–22 on Apple Silicon at the default `Release`
+optimization level.
+
+The same constraint already applied to subtests via
+`att_subtest_scope_protect` (a macro in `include/attest/attest.h`).
 
 ### Windows setjmp Stack Corruption (Resolved)
 
@@ -250,6 +271,9 @@ int helper(void) { return setjmp(env); }  // env invalid after return
 #define PROTECT() setjmp(*get_env_ptr())
 if (PROTECT() == 0) { ... }  // setjmp in this stack frame
 ```
+
+This is the same constraint that the cross-frame `setjmp` fix above
+extends to the top-level test runner.
 
 ### MSVC SCOPED_INFO Limitation
 
