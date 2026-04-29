@@ -48,6 +48,11 @@ if(WIN32)
     target_compile_definitions(attest PRIVATE
         _CRT_SECURE_NO_WARNINGS
     )
+    # MSVC: Treat sources and execution charset as UTF-8 to avoid C4819 on
+    # Japanese (CP932) Windows systems.
+    if(MSVC)
+        target_compile_options(attest PUBLIC /utf-8)
+    endif()
 else()
     # POSIX: Define _POSIX_C_SOURCE for signal and timer features
     target_compile_definitions(attest PRIVATE
