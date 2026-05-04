@@ -1,5 +1,7 @@
 # Internals
 
+**English** | [日本語](internals.ja.md)
+
 This document describes the architecture, design decisions, and platform-specific implementation details of attest.
 
 ## Architecture Overview

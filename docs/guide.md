@@ -1,5 +1,7 @@
 # User Guide
 
+**English** | [日本語](guide.ja.md)
+
 This guide covers common usage patterns and advanced features of attest.
 
 ## Basic Tests

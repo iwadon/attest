@@ -1,5 +1,7 @@
 # API Reference
 
+**English** | [日本語](api.ja.md)
+
 This document provides a complete reference for all attest macros, functions, and CLI options.
 
 ## Test Definition Macros
