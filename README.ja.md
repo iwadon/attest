@@ -111,9 +111,10 @@ Parallels Desktop の VM 上で Visual Studio Community 2026
 | `clang-cl` | 20.1.8（`aarch64-pc-windows-msvc`） | C11 `<threads.h>` + `_Thread_local` | ✅ パス |
 
 動作確認の過程で CP932 ロケール固有の問題を 2 件解消しています。MSVC の
-`/utf-8` を `attest` ターゲットに PUBLIC で付与して日本語版 Windows 上の
-C4819 を抑制し、`Fixture.SetupTeardownCounters` セルフテストはテスト登録順に
-依存しない形へ書き換えて `--shuffle` でも安定するようにしました。
+`/source-charset:utf-8` を `attest` ターゲットに PUBLIC で付与して日本語版
+Windows 上の C4819 を抑制しつつ、利用側の実行文字セットは強制しないように
+しました。`Fixture.SetupTeardownCounters` セルフテストはテスト登録順に依存
+しない形へ書き換えて `--shuffle` でも安定するようにしました。
 
 #### Windows 11 (x64)
 

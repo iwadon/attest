@@ -113,10 +113,10 @@ and `attest_selftest_c99` reports 12 tests (11 passed / 1 skipped).
 | `clang-cl` | 20.1.8 (`aarch64-pc-windows-msvc`) | C11 `<threads.h>` + `_Thread_local` | ✅ Pass |
 
 Two CP932-locale specific issues were addressed in the course of verification:
-MSVC's `/utf-8` is now applied PUBLIC on the `attest` target to silence C4819
-on Japanese Windows, and the `Fixture.SetupTeardownCounters` self-test was
-rewritten to be independent of test registration order so it survives
-`--shuffle`.
+MSVC's `/source-charset:utf-8` is now applied PUBLIC on the `attest` target to
+silence C4819 on Japanese Windows without forcing consumers' execution
+charset, and the `Fixture.SetupTeardownCounters` self-test was rewritten to be
+independent of test registration order so it survives `--shuffle`.
 
 #### Windows 11 (x64)
 
