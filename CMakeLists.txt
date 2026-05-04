@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
-project(attest C)
+project(attest VERSION 0.1.0 LANGUAGES C)
+
+# PROJECT_IS_TOP_LEVEL は CMake 3.21+ なので互換変数を用意する
+if(NOT DEFINED PROJECT_IS_TOP_LEVEL)
+    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+        set(PROJECT_IS_TOP_LEVEL TRUE)
+    else()
+        set(PROJECT_IS_TOP_LEVEL FALSE)
+    endif()
+endif()
 
 # ライブラリ本体は C99 で動作可能。_Generic 等の C11 機能は
 # include/attest/attest.h 内で __STDC_VERSION__ ガード付きで提供される。
@@ -29,10 +38,12 @@ else()
 endif()
 
 add_library(attest STATIC ${ATTEST_SOURCES})
+add_library(attest::attest ALIAS attest)
 
 target_include_directories(attest
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -144,4 +155,51 @@ if(ATTEST_BUILD_TESTING)
   if(NOT WIN32)
       target_compile_definitions(attest_thread_detection_test PRIVATE _POSIX_C_SOURCE=200809L)
   endif()
+endif()
+
+# ---------------------------------------------------------------------------
+# Install / export rules (find_package(attest) support)
+# ---------------------------------------------------------------------------
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+option(ATTEST_INSTALL "Generate install rules for attest" ${PROJECT_IS_TOP_LEVEL})
+
+if(ATTEST_INSTALL)
+    install(TARGETS attest
+        EXPORT attestTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/attest
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+
+    install(EXPORT attestTargets
+        FILE attestTargets.cmake
+        NAMESPACE attest::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/attest
+    )
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/attestConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/attestConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/attest
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/attestConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/attestConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/attestConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/attest
+    )
 endif()
