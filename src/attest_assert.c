@@ -555,9 +555,62 @@ static att_formatted att_format_string(const char *value)
 	return fmt;
 }
 
-static void att_build_expr(char *buffer, size_t size, const char *lhs_expr, const att_formatted *lhs_value, const char *rhs_expr, const att_formatted *rhs_value)
+static const char att_format_alloc_fallback[] = "(format error)";
+
+#if defined(__GNUC__) || defined(__clang__)
+#define ATT_FORMAT_PRINTF(fmt_idx, args_idx) __attribute__((format(printf, fmt_idx, args_idx)))
+#else
+#define ATT_FORMAT_PRINTF(fmt_idx, args_idx)
+#endif
+
+static char *att_vformat_alloc(const char *fmt, va_list args)
 {
-	snprintf(buffer, size, "%s=%s, %s=%s", lhs_expr, lhs_value->text, rhs_expr, rhs_value->text);
+	va_list copy;
+	va_copy(copy, args);
+	int needed = vsnprintf(NULL, 0, fmt, copy);
+	va_end(copy);
+	if (needed < 0) {
+		return NULL;
+	}
+	size_t size = (size_t)needed + 1;
+	char *buffer = malloc(size);
+	if (!buffer) {
+		return NULL;
+	}
+	int written = vsnprintf(buffer, size, fmt, args);
+	if (written < 0) {
+		free(buffer);
+		return NULL;
+	}
+	return buffer;
+}
+
+ATT_FORMAT_PRINTF(1, 2)
+static char *att_format_alloc(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	char *result = att_vformat_alloc(fmt, args);
+	va_end(args);
+	return result;
+}
+
+/* Returns a non-NULL string. Use att_format_free() to release. */
+static const char *att_format_or_fallback(char *allocated)
+{
+	return allocated ? allocated : att_format_alloc_fallback;
+}
+
+static void att_format_free(const char *text)
+{
+	if (text && text != att_format_alloc_fallback) {
+		free((char *)text);
+	}
+}
+
+static const char *att_build_expr_alloc(const char *lhs_expr, const att_formatted *lhs_value, const char *rhs_expr, const att_formatted *rhs_value)
+{
+	return att_format_or_fallback(att_format_alloc("%s=%s, %s=%s", lhs_expr, lhs_value->text, rhs_expr, rhs_value->text));
 }
 
 static char *att_dup_string(const char *text)
@@ -779,9 +832,9 @@ ATT_DEFINE_COMPARE(pointer_values, uintptr_t)
 		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {                                                                                                \
 			rhs_fmt.text = rhs_fmt.buffer;                                                                                                                      \
 		}                                                                                                                                                       \
-		char expr[256];                                                                                                                                         \
-		att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);                                                                             \
+		const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);                                                                        \
 		att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);                                                         \
+		att_format_free(expr);                                                                                                                                  \
 		if (fatal) {                                                                                                                                            \
 			att_context_abort();                                                                                                                                \
 		}                                                                                                                                                       \
@@ -809,9 +862,9 @@ void att_handle_compare_pointer(int op, const char *assertion, const char *file,
 	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
 		rhs_fmt.text = rhs_fmt.buffer;
 	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
+	att_format_free(expr);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -827,9 +880,9 @@ void att_handle_truth(const char *assertion, const char *file, int line, bool fa
 
 	att_formatted expected_fmt = att_format_bool(expect_true);
 	att_formatted actual_fmt = att_format_bool(value);
-	char expr_buffer[256];
-	snprintf(expr_buffer, sizeof(expr_buffer), "%s=%s", expr, actual_fmt.text);
+	const char *expr_buffer = att_format_or_fallback(att_format_alloc("%s=%s", expr, actual_fmt.text));
 	att_report_failure(fatal, assertion, file, line, expected_fmt.text, actual_fmt.text, expr_buffer, NULL, NULL);
+	att_format_free(expr_buffer);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -843,17 +896,17 @@ void att_handle_custom_assert(const char *file, int line, bool fatal, bool value
 		return;
 	}
 
-	char message[512];
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(message, sizeof(message), fmt, args);
+	const char *message = att_format_or_fallback(att_vformat_alloc(fmt, args));
 	va_end(args);
 
 	const char *assertion_name = fatal ? "ATT_ASSERT" : "ATT_EXPECT";
-	char assertion_text[128];
-	snprintf(assertion_text, sizeof(assertion_text), "%s(%s, ...)", assertion_name, expr);
+	const char *assertion_text = att_format_or_fallback(att_format_alloc("%s(%s, ...)", assertion_name, expr));
 
 	att_report_failure(fatal, assertion_text, file, line, "expression evaluates to true", message, expr, NULL, NULL);
+	att_format_free(assertion_text);
+	att_format_free(message);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1057,12 +1110,12 @@ static void att_handle_string_simple(const att_failure_context *fc, const char *
 	att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
 	att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
 
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 	if (!fc->suppress) {
 		fprintf(fc->out, "    expr: %s\n", expr);
 	}
 	att_context_failure_append_format("    expr: %s\n", expr);
+	att_format_free(expr);
 }
 
 void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
@@ -1122,15 +1175,14 @@ void att_handle_memory(const char *assertion, const char *file, int line, bool f
 		return;
 	}
 
-	char expected_buf[64];
-	snprintf(expected_buf, sizeof(expected_buf), "memory equal (len=%zu)", size);
-	char actual_buf[128];
+	const char *expected_buf = att_format_or_fallback(att_format_alloc("memory equal (len=%zu)", size));
+	const char *actual_buf;
 	if (size > 0 && lhs && rhs && mismatch_index != SIZE_MAX) {
-		snprintf(actual_buf, sizeof(actual_buf), "mismatch at byte %zu (0x%02X vs 0x%02X)", mismatch_index, lhs_byte, rhs_byte);
+		actual_buf = att_format_or_fallback(att_format_alloc("mismatch at byte %zu (0x%02X vs 0x%02X)", mismatch_index, lhs_byte, rhs_byte));
 	} else if (size > 0 && (!lhs || !rhs)) {
-		snprintf(actual_buf, sizeof(actual_buf), "%s pointer is NULL", lhs ? "rhs" : "lhs");
+		actual_buf = att_format_or_fallback(att_format_alloc("%s pointer is NULL", lhs ? "rhs" : "lhs"));
 	} else {
-		snprintf(actual_buf, sizeof(actual_buf), "unexpected mismatch");
+		actual_buf = att_format_or_fallback(att_format_alloc("unexpected mismatch"));
 	}
 
 	att_formatted lhs_fmt = att_format_pointer(lhs);
@@ -1141,10 +1193,12 @@ void att_handle_memory(const char *assertion, const char *file, int line, bool f
 	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
 		rhs_fmt.text = rhs_fmt.buffer;
 	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, NULL, NULL);
+	att_format_free(expr);
+	att_format_free(actual_buf);
+	att_format_free(expected_buf);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1181,30 +1235,31 @@ void att_handle_near(const char *assertion, const char *file, int line, bool fat
 	if (eps_fmt.text == NULL || eps_fmt.buffer[0] != '\0') {
 		eps_fmt.text = eps_fmt.buffer;
 	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 
-	char expected_buf[128];
-	snprintf(expected_buf, sizeof(expected_buf), "|%s - %s| <= %s", lhs_expr, rhs_expr, eps_expr);
+	const char *expected_buf = att_format_or_fallback(att_format_alloc("|%s - %s| <= %s", lhs_expr, rhs_expr, eps_expr));
 
-	char actual_buf[128];
+	const char *actual_buf;
 	if (!valid) {
 		if (epsilon < 0.0) {
-			snprintf(actual_buf, sizeof(actual_buf), "epsilon is negative (%s)", eps_fmt.text);
+			actual_buf = att_format_or_fallback(att_format_alloc("epsilon is negative (%s)", eps_fmt.text));
 		} else {
-			snprintf(actual_buf, sizeof(actual_buf), "comparison undefined (NaN input)");
+			actual_buf = att_format_or_fallback(att_format_alloc("comparison undefined (NaN input)"));
 		}
 	} else if (isinf(lhs) || isinf(rhs)) {
-		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
+		actual_buf = att_format_or_fallback(att_format_alloc("infinite values differ"));
 	} else {
 		att_formatted diff_fmt = att_format_double(diff);
 		if (diff_fmt.text == NULL || diff_fmt.buffer[0] != '\0') {
 			diff_fmt.text = diff_fmt.buffer;
 		}
-		snprintf(actual_buf, sizeof(actual_buf), "|lhs - rhs| = %s", diff_fmt.text);
+		actual_buf = att_format_or_fallback(att_format_alloc("|lhs - rhs| = %s", diff_fmt.text));
 	}
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "epsilon", eps_fmt.text);
+	att_format_free(expr);
+	att_format_free(actual_buf);
+	att_format_free(expected_buf);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1248,21 +1303,19 @@ void att_handle_near_rel(const char *assertion, const char *file, int line, bool
 	if (eps_fmt.text == NULL || eps_fmt.buffer[0] != '\0') {
 		eps_fmt.text = eps_fmt.buffer;
 	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
+	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
 
-	char expected_buf[128];
-	snprintf(expected_buf, sizeof(expected_buf), "|%s - %s| <= %s * max(|%s|, |%s|)", lhs_expr, rhs_expr, eps_expr, lhs_expr, rhs_expr);
+	const char *expected_buf = att_format_or_fallback(att_format_alloc("|%s - %s| <= %s * max(|%s|, |%s|)", lhs_expr, rhs_expr, eps_expr, lhs_expr, rhs_expr));
 
-	char actual_buf[128];
+	const char *actual_buf;
 	if (!valid) {
 		if (rel_eps < 0.0) {
-			snprintf(actual_buf, sizeof(actual_buf), "rel_eps is negative (%s)", eps_fmt.text);
+			actual_buf = att_format_or_fallback(att_format_alloc("rel_eps is negative (%s)", eps_fmt.text));
 		} else {
-			snprintf(actual_buf, sizeof(actual_buf), "comparison undefined (NaN input)");
+			actual_buf = att_format_or_fallback(att_format_alloc("comparison undefined (NaN input)"));
 		}
 	} else if (isinf(lhs) || isinf(rhs)) {
-		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
+		actual_buf = att_format_or_fallback(att_format_alloc("infinite values differ"));
 	} else {
 		att_formatted diff_fmt = att_format_double(diff);
 		if (diff_fmt.text == NULL || diff_fmt.buffer[0] != '\0') {
@@ -1272,10 +1325,13 @@ void att_handle_near_rel(const char *assertion, const char *file, int line, bool
 		if (threshold_fmt.text == NULL || threshold_fmt.buffer[0] != '\0') {
 			threshold_fmt.text = threshold_fmt.buffer;
 		}
-		snprintf(actual_buf, sizeof(actual_buf), "|lhs - rhs| = %s, threshold = %s", diff_fmt.text, threshold_fmt.text);
+		actual_buf = att_format_or_fallback(att_format_alloc("|lhs - rhs| = %s, threshold = %s", diff_fmt.text, threshold_fmt.text));
 	}
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "rel_eps", eps_fmt.text);
+	att_format_free(expr);
+	att_format_free(actual_buf);
+	att_format_free(expected_buf);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1337,33 +1393,34 @@ void att_handle_ulp_eq(double a, double b, int64_t max_ulp, const char *file, in
 	if (b_fmt.text == NULL || b_fmt.buffer[0] != '\0') {
 		b_fmt.text = b_fmt.buffer;
 	}
-	char expr[256];
-	att_build_expr(expr, sizeof(expr), expr_a, &a_fmt, expr_b, &b_fmt);
+	const char *expr = att_build_expr_alloc(expr_a, &a_fmt, expr_b, &b_fmt);
 
-	char expected_buf[128];
-	snprintf(expected_buf, sizeof(expected_buf), "ULP distance <= %s", expr_ulp);
+	const char *expected_buf = att_format_or_fallback(att_format_alloc("ULP distance <= %s", expr_ulp));
 
-	char actual_buf[128];
+	const char *actual_buf;
 	if (!valid) {
 		if (max_ulp < 0) {
-			snprintf(actual_buf, sizeof(actual_buf), "max_ulp is negative (%" PRId64 ")", max_ulp);
+			actual_buf = att_format_or_fallback(att_format_alloc("max_ulp is negative (%" PRId64 ")", max_ulp));
 		} else {
-			snprintf(actual_buf, sizeof(actual_buf), "comparison undefined (NaN input)");
+			actual_buf = att_format_or_fallback(att_format_alloc("comparison undefined (NaN input)"));
 		}
 	} else if (isinf(a) || isinf(b)) {
-		snprintf(actual_buf, sizeof(actual_buf), "infinite values differ");
+		actual_buf = att_format_or_fallback(att_format_alloc("infinite values differ"));
 	} else {
-		snprintf(actual_buf, sizeof(actual_buf), "ULP distance = %" PRId64, ulp_distance);
+		actual_buf = att_format_or_fallback(att_format_alloc("ULP distance = %" PRId64, ulp_distance));
 	}
 
-	char ulp_str[32];
-	snprintf(ulp_str, sizeof(ulp_str), "%" PRId64, max_ulp);
+	const char *ulp_str = att_format_or_fallback(att_format_alloc("%" PRId64, max_ulp));
 
 	const char *assertion_name = fatal ? "ASSERT_ULP_EQ" : "EXPECT_ULP_EQ";
-	char assertion_full[128];
-	snprintf(assertion_full, sizeof(assertion_full), "%s(%s, %s, %s)", assertion_name, expr_a, expr_b, expr_ulp);
+	const char *assertion_full = att_format_or_fallback(att_format_alloc("%s(%s, %s, %s)", assertion_name, expr_a, expr_b, expr_ulp));
 
 	att_report_failure(fatal, assertion_full, file, line, expected_buf, actual_buf, expr, "max_ulp", ulp_str);
+	att_format_free(assertion_full);
+	att_format_free(ulp_str);
+	att_format_free(actual_buf);
+	att_format_free(expected_buf);
+	att_format_free(expr);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1398,19 +1455,17 @@ bool att_handle_subtest_expect(const char *assertion, const char *file, int line
 		return true;
 	}
 
-	char expected_buf[64];
-	snprintf(expected_buf, sizeof(expected_buf), "failures in [%d,%d]", min, max);
-
-	char actual_buf[128];
-	snprintf(actual_buf, sizeof(actual_buf), "%d failures (status=%s)", failures, att_status_name(status));
-
-	char expr_buf[160];
-	snprintf(expr_buf, sizeof(expr_buf), "failed=%d, fatal=%d, nonfatal=%d", failures, fatal_failures, nonfatal_failures);
+	const char *expected_buf = att_format_or_fallback(att_format_alloc("failures in [%d,%d]", min, max));
+	const char *actual_buf = att_format_or_fallback(att_format_alloc("%d failures (status=%s)", failures, att_status_name(status)));
+	const char *expr_buf = att_format_or_fallback(att_format_alloc("failed=%d, fatal=%d, nonfatal=%d", failures, fatal_failures, nonfatal_failures));
 
 	const char *sub_name = name_value ? name_value : "(null)";
 	const char *name_desc = name_expr ? name_expr : "name";
 
 	att_report_failure(false, assertion, file, line, expected_buf, actual_buf, expr_buf, name_desc, sub_name);
+	att_format_free(expr_buf);
+	att_format_free(actual_buf);
+	att_format_free(expected_buf);
 	return false;
 }
 
