@@ -472,7 +472,7 @@ TEST_F(MathFx, CountsSetupPerTest)
 	EXPECT_EQ(fx->rhs, 2);
 }
 
-static void mathfx_noop_body(MathFx *fx)
+static void mathfx_noop_body(void *fx)
 {
 	(void)fx;
 }
@@ -481,7 +481,7 @@ TEST(Fixture, SetupTeardownCounters)
 {
 	int setup_before = g_mathfx_setup_calls;
 	int teardown_before = g_mathfx_teardown_calls;
-	att_fixture_run("MathFx", sizeof(MathFx), (att_fixture_body_fn)mathfx_noop_body);
+	att_fixture_run("MathFx", sizeof(MathFx), mathfx_noop_body);
 	EXPECT_EQ(g_mathfx_setup_calls - setup_before, 1);
 	EXPECT_EQ(g_mathfx_teardown_calls - teardown_before, 1);
 }

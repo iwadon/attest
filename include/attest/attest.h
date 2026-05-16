@@ -645,35 +645,54 @@ struct att_info_scope {
 
 #define ATT_TEST_REF(Suite, Name) ATT_REGISTER_FN_NAME(Suite, Name)
 
-#define ATT_FIXTURE_SETUP(Fixture)                                                                              \
-	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture);                                           \
-	ATT_AUTOREG(ATT_CONCAT(att_fixture_setup_autoreg_, Fixture))                                                \
-	{                                                                                                           \
-		att_fixture_register_setup(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_SETUP_FN(Fixture)); \
-	}                                                                                                           \
+/* The hook signature stored in the registry takes void* so it can hold any
+ * fixture type. Calling a `void (Fixture*)` function through a `void (void*)`
+ * pointer is undefined behavior (C11 §6.3.2.3p8) and UBSan's
+ * function-type check rejects it, so each macro emits a tiny trampoline that
+ * casts within a single translation unit. */
+#define ATT_FIXTURE_SETUP(Fixture)                                                  \
+	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture);               \
+	static void ATT_CONCAT(ATT_FIXTURE_SETUP_FN(Fixture), _trampoline)(void *att_p) \
+	{                                                                               \
+		ATT_FIXTURE_SETUP_FN(Fixture)((Fixture *)att_p);                            \
+	}                                                                               \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_setup_autoreg_, Fixture))                    \
+	{                                                                               \
+		att_fixture_register_setup(#Fixture, sizeof(Fixture),                       \
+			ATT_CONCAT(ATT_FIXTURE_SETUP_FN(Fixture), _trampoline));                \
+	}                                                                               \
 	static void ATT_FIXTURE_SETUP_FN(Fixture)(Fixture * att_fixture)
 
-#define ATT_FIXTURE_TEARDOWN(Fixture)                                                                                 \
-	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture);                                              \
-	ATT_AUTOREG(ATT_CONCAT(att_fixture_teardown_autoreg_, Fixture))                                                   \
-	{                                                                                                                 \
-		att_fixture_register_teardown(#Fixture, sizeof(Fixture), (att_fixture_hook)ATT_FIXTURE_TEARDOWN_FN(Fixture)); \
-	}                                                                                                                 \
+#define ATT_FIXTURE_TEARDOWN(Fixture)                                                  \
+	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture);               \
+	static void ATT_CONCAT(ATT_FIXTURE_TEARDOWN_FN(Fixture), _trampoline)(void *att_p) \
+	{                                                                                  \
+		ATT_FIXTURE_TEARDOWN_FN(Fixture)((Fixture *)att_p);                            \
+	}                                                                                  \
+	ATT_AUTOREG(ATT_CONCAT(att_fixture_teardown_autoreg_, Fixture))                    \
+	{                                                                                  \
+		att_fixture_register_teardown(#Fixture, sizeof(Fixture),                       \
+			ATT_CONCAT(ATT_FIXTURE_TEARDOWN_FN(Fixture), _trampoline));                \
+	}                                                                                  \
 	static void ATT_FIXTURE_TEARDOWN_FN(Fixture)(Fixture * att_fixture)
 
 #define ATT_FIXTURE(type) ((type *)att_fixture)
 
-#define ATT_TEST_F_IMPL(suite, name, fixture_type, fn_symbol, body_symbol, reg_symbol)  \
-	static void body_symbol(fixture_type *att_fixture);                                 \
-	static void fn_symbol(void);                                                        \
-	ATT_AUTOREG(reg_symbol)                                                             \
-	{                                                                                   \
-		att_register_test(suite, name, fn_symbol, __FILE__, __LINE__);                  \
-	}                                                                                   \
-	static void fn_symbol(void)                                                         \
-	{                                                                                   \
-		att_fixture_run(suite, sizeof(fixture_type), (att_fixture_body_fn)body_symbol); \
-	}                                                                                   \
+#define ATT_TEST_F_IMPL(suite, name, fixture_type, fn_symbol, body_symbol, reg_symbol)      \
+	static void body_symbol(fixture_type *att_fixture);                                     \
+	static void ATT_CONCAT(body_symbol, _trampoline)(void *att_p)                           \
+	{                                                                                       \
+		body_symbol((fixture_type *)att_p);                                                 \
+	}                                                                                       \
+	static void fn_symbol(void);                                                            \
+	ATT_AUTOREG(reg_symbol)                                                                 \
+	{                                                                                       \
+		att_register_test(suite, name, fn_symbol, __FILE__, __LINE__);                      \
+	}                                                                                       \
+	static void fn_symbol(void)                                                             \
+	{                                                                                       \
+		att_fixture_run(suite, sizeof(fixture_type), ATT_CONCAT(body_symbol, _trampoline)); \
+	}                                                                                       \
 	static void body_symbol(fixture_type *att_fixture)
 
 #define ATT_SKIP(reason)  \
