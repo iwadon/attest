@@ -99,78 +99,64 @@ int att_capture_begin(void)
 
 int att_capture_end(att_captured *out)
 {
+	if (out) {
+		out->data = NULL;
+		out->size = 0;
+	}
+
+	int rc = -1;
+	char *buffer = NULL;
+	size_t read = 0;
+
 	if (!g_capture.active || !g_capture.temp) {
-		if (out) {
-			out->data = NULL;
-			out->size = 0;
-		}
-		att_capture_state_reset();
-		return -1;
+		goto cleanup;
 	}
 
 	fflush(stderr);
 
 	int stderr_fd = ATT_FILENO(stderr);
 	if (ATT_DUP2(g_capture.original_fd, stderr_fd) < 0) {
-		ATT_CLOSE(g_capture.original_fd);
-		fclose(g_capture.temp);
-		att_capture_state_reset();
-		if (out) {
-			out->data = NULL;
-			out->size = 0;
-		}
-		return -1;
+		goto cleanup;
 	}
 	ATT_CLOSE(g_capture.original_fd);
 	g_capture.original_fd = -1;
 
 	long end_pos = ftell(g_capture.temp);
 	if (end_pos < 0) {
-		fclose(g_capture.temp);
-		att_capture_state_reset();
-		if (out) {
-			out->data = NULL;
-			out->size = 0;
-		}
-		return -1;
+		goto cleanup;
 	}
 
 	if (fseek(g_capture.temp, 0L, SEEK_SET) != 0) {
-		fclose(g_capture.temp);
-		att_capture_state_reset();
-		if (out) {
-			out->data = NULL;
-			out->size = 0;
-		}
-		return -1;
+		goto cleanup;
 	}
 
 	size_t size = (size_t)end_pos;
-	char *buffer = malloc(size + 1);
+	buffer = malloc(size + 1);
 	if (!buffer) {
-		fclose(g_capture.temp);
-		att_capture_state_reset();
-		if (out) {
-			out->data = NULL;
-			out->size = 0;
-		}
-		return -1;
+		goto cleanup;
 	}
 
-	size_t read = fread(buffer, 1, size, g_capture.temp);
+	read = fread(buffer, 1, size, g_capture.temp);
 	buffer[read] = '\0';
+	rc = 0;
 
-	fclose(g_capture.temp);
+cleanup:
+	if (g_capture.temp) {
+		fclose(g_capture.temp);
+	}
+	if (g_capture.original_fd >= 0) {
+		ATT_CLOSE(g_capture.original_fd);
+	}
 	att_capture_state_reset();
 
-	if (out) {
+	if (rc == 0 && out) {
 		out->data = buffer;
 		out->size = read;
 	} else {
 		free(buffer);
 	}
 
-	return 0;
+	return rc;
 }
 
 #endif /* ATT_CAPTURE_DISABLED */

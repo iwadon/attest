@@ -99,6 +99,13 @@ typedef struct att_captured {
 	size_t size;
 } att_captured;
 
+/* stderr capture.
+ *
+ * Not reentrant (no nesting) and not thread-safe: the implementation keeps
+ * one global capture state, so concurrent or nested calls race. When tests
+ * run under --jobs=N, restrict capture to operations inside a single test
+ * body (each worker runs tests serially) and do not span an
+ * att_capture_begin/end pair across workers. */
 int att_capture_begin(void);
 int att_capture_end(att_captured *out);
 

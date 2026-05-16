@@ -316,9 +316,11 @@ TEST(Scope, Example) {
 
 ### att_capture_begin() / att_capture_end(out)
 
-Capture stderr output for validation. Non-reentrant (no nesting). Both
-functions return `0` on success and `-1` on error or when capture is
-unsupported on the current platform.
+Capture stderr output for validation. Non-reentrant (no nesting) and not
+thread-safe — the implementation uses a single global capture state, so
+under `--jobs=N` keep each begin/end pair inside one test body on one
+worker. Both functions return `0` on success and `-1` on error or when
+capture is unsupported on the current platform.
 
 ```c
 att_captured cap;
