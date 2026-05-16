@@ -62,8 +62,12 @@
 #define ATT_ALIGN(n) __declspec(align(n))
 #elif defined(ATT_COMPILER_GCC_LIKE)
 #define ATT_ALIGN(n) __attribute__((aligned(n)))
-#else
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define ATT_ALIGN(n) _Alignas(n)
+#else
+/* C99 or earlier without compiler-specific extensions: alignment hint omitted.
+ * Safe on platforms without SIMD-style alignment requirements (e.g. m68k). */
+#define ATT_ALIGN(n)
 #endif
 
 /* ========================================================================
