@@ -225,6 +225,64 @@ struct att_info_scope {
 		ATT_GENERIC_COMPARE(ATT_COMP_GE, false, lhs, rhs, #lhs, #rhs, "EXPECT_GE(" #lhs ", " #rhs ")"); \
 	} while (0)
 
+#else
+/* Pre-C11 / no _Generic support: fall back to signed-integer comparison.
+ * Callers needing float, pointer, or unsigned semantics should use the
+ * explicit per-type macros (ASSERT_INT_EQ, ASSERT_DBL_NEAR, ASSERT_STR_EQ, etc.). */
+
+#define ATT_FALLBACK_COMPARE(op, fatal, lhs_value, rhs_value, lhs_expr, rhs_expr, assertion_text) \
+	att_handle_compare_signed((op), (assertion_text), __FILE__, __LINE__, (fatal),                \
+		(lhs_expr), (rhs_expr), (long long)(lhs_value), (long long)(rhs_value))
+
+#define ASSERT_EQ(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_EQ, true, lhs, rhs, #lhs, #rhs, "ASSERT_EQ(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_EQ(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_EQ, false, lhs, rhs, #lhs, #rhs, "EXPECT_EQ(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define ASSERT_NE(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_NE, true, lhs, rhs, #lhs, #rhs, "ASSERT_NE(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_NE(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_NE, false, lhs, rhs, #lhs, #rhs, "EXPECT_NE(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define ASSERT_LT(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_LT, true, lhs, rhs, #lhs, #rhs, "ASSERT_LT(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_LT(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_LT, false, lhs, rhs, #lhs, #rhs, "EXPECT_LT(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define ASSERT_LE(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_LE, true, lhs, rhs, #lhs, #rhs, "ASSERT_LE(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_LE(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_LE, false, lhs, rhs, #lhs, #rhs, "EXPECT_LE(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define ASSERT_GT(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_GT, true, lhs, rhs, #lhs, #rhs, "ASSERT_GT(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_GT(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_GT, false, lhs, rhs, #lhs, #rhs, "EXPECT_GT(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define ASSERT_GE(lhs, rhs)                                                                             \
+	do {                                                                                                \
+		ATT_FALLBACK_COMPARE(ATT_COMP_GE, true, lhs, rhs, #lhs, #rhs, "ASSERT_GE(" #lhs ", " #rhs ")"); \
+	} while (0)
+#define EXPECT_GE(lhs, rhs)                                                                              \
+	do {                                                                                                 \
+		ATT_FALLBACK_COMPARE(ATT_COMP_GE, false, lhs, rhs, #lhs, #rhs, "EXPECT_GE(" #lhs ", " #rhs ")"); \
+	} while (0)
+
 #endif /* C11 _Generic support */
 
 /* C89-compatible explicit type macros - INT (signed) */
