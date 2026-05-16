@@ -52,5 +52,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
+# Human68k executables use the .x extension
+set(CMAKE_EXECUTABLE_SUFFIX ".x")
+
 # Flag to enable Human68k-specific source files
 set(ATTEST_TARGET_HUMAN68K ON)
