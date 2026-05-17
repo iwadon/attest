@@ -12,6 +12,15 @@
 #define ATT_PLATFORM_WINDOWS
 #endif
 
+/* Expose _POSIX_VERSION on POSIX systems. <unistd.h> is the canonical way to
+ * surface it after _POSIX_C_SOURCE has been set in attest.h; without this the
+ * thread-support detection below cannot tell POSIX environments apart from
+ * freestanding ones and silently falls back to ATT_THREADS_NONE — which in
+ * turn disables the entire parallel execution path. */
+#if !defined(ATT_PLATFORM_WINDOWS) && !defined(ATT_PLATFORM_HUMAN68K)
+#include <unistd.h>
+#endif
+
 /* ========================================================================
  * Thread Support Detection
  * ======================================================================== */
