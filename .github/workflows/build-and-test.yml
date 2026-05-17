@@ -34,7 +34,7 @@ jobs:
           - os: macos-latest
             build_type: Release
             generator: Ninja
-          - os: windows-2025
+          - os: windows-latest
             build_type: Release
             # Use the default Visual Studio generator on Windows so we exercise
             # the MSVC code paths (multi-config) instead of MinGW.
