@@ -47,6 +47,36 @@ attest_summary s = attest_get_summary();
 printf("Ran %d tests, %d passed\n", s.total, s.passed);
 ```
 
+### Serial-Only Tests
+
+Some tests cannot run concurrently with others — they touch process-wide
+state such as the current working directory, environment variables, or a
+fixed file path. Today the only mitigations are running the suite with
+`--jobs=1` or invoking the offending test from a separate process via
+`--filter`. A `TEST_SERIAL(Suite, Name)` / `TEST_SERIAL_F(Fixture, Name)`
+marker would let the parallel runner partition tests into a parallel
+phase and a sequential phase, so serial tests are guaranteed never to
+race with anything else.
+
+```c
+TEST_SERIAL(Env, MutatesPath) {
+    setenv("PATH", "/sandbox", 1);
+    // ... no other test runs while this is in flight ...
+}
+```
+
+Open design points to settle before implementing:
+
+- **Granularity.** Process-wide exclusion (simple) vs. named groups
+  (`TEST_SERIAL_GROUP("fs", ...)`, allowing serial tests in different
+  groups to overlap). Start with process-wide unless a real use case
+  needs groups.
+- **Scheduling.** Run serial tests before or after the parallel batch?
+  Either is fine; pick whichever keeps the implementation small.
+- **Fairness with long serial tests.** A long-running serial test late
+  in the suite will idle workers. Mitigations (dedicated serial worker,
+  reordering) add complexity and can wait until measured.
+
 ---
 
 ## P2 (Long-term)
