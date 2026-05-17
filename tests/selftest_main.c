@@ -477,13 +477,43 @@ static void mathfx_noop_body(void *fx)
 	(void)fx;
 }
 
+/* Dedicated fixture for SetupTeardownCounters. Using MathFx here would
+ * race with TEST_F(MathFx, ...) running concurrently under --jobs>1:
+ * the shared global counter would be bumped by other workers between
+ * our before/after snapshots. CounterFx is touched by nothing else, so
+ * its dedicated counters can only be moved by the att_fixture_run() in
+ * this test, regardless of how many workers are active. */
+typedef struct {
+	int dummy;
+} CounterFx;
+
+static int g_counterfx_setup_calls;
+static int g_counterfx_teardown_calls;
+
+ATT_FIXTURE_SETUP(CounterFx)
+{
+	(void)att_fixture;
+	g_counterfx_setup_calls += 1;
+}
+
+ATT_FIXTURE_TEARDOWN(CounterFx)
+{
+	(void)att_fixture;
+	g_counterfx_teardown_calls += 1;
+}
+
+static void counterfx_noop_body(void *fx)
+{
+	(void)fx;
+}
+
 TEST(Fixture, SetupTeardownCounters)
 {
-	int setup_before = g_mathfx_setup_calls;
-	int teardown_before = g_mathfx_teardown_calls;
-	att_fixture_run("MathFx", sizeof(MathFx), mathfx_noop_body);
-	EXPECT_EQ(g_mathfx_setup_calls - setup_before, 1);
-	EXPECT_EQ(g_mathfx_teardown_calls - teardown_before, 1);
+	int setup_before = g_counterfx_setup_calls;
+	int teardown_before = g_counterfx_teardown_calls;
+	att_fixture_run("CounterFx", sizeof(CounterFx), counterfx_noop_body);
+	EXPECT_EQ(g_counterfx_setup_calls - setup_before, 1);
+	EXPECT_EQ(g_counterfx_teardown_calls - teardown_before, 1);
 }
 
 TEST(Skip, TopLevel)
