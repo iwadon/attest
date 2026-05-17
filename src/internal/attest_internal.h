@@ -181,6 +181,14 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 void att_report_summary(const att_summary *summary, bool color_enabled);
 void att_registry_cleanup(void);
 
+/* Format a "[ SKIPPED ] <name>\n  reason: <reason>\n" pair on stdout
+ * using the default formatter. No-op for TAP and JUnit, which emit
+ * skip information through their own paths. Shared between the
+ * sequential runner (top-level skips) and att_subtest_scope_finalize
+ * (subtest-scope skips) so both call sites format identically without
+ * att_context_skip having to emit anything directly. */
+void att_emit_skip_default(const char *fullname, const char *reason, att_output_format format);
+
 /* ========================================================================
  * Parallel Execution API (Phase 2+)
  * ======================================================================== */

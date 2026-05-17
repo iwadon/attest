@@ -300,9 +300,11 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 
 		if (result.skipped) {
 			++summary->tests_skipped;
+			const char *reason = result.skip_reason ? result.skip_reason : "(none)";
 			if (tap_mode) {
-				const char *reason = result.skip_reason ? result.skip_reason : "(none)";
 				printf("ok %d %s # SKIP %s\n", tap_index, test->fullname, reason);
+			} else {
+				att_emit_skip_default(test->fullname, reason, opts->format);
 			}
 			if (!junit_mode) {
 				if (result.skip_reason) {
@@ -361,6 +363,15 @@ int att_run_tests(const att_registry *registry, const att_cli_options *opts, att
 	}
 
 	return summary->tests_failed > 0 ? 1 : 0;
+}
+
+void att_emit_skip_default(const char *fullname, const char *reason, att_output_format format)
+{
+	if (format == ATT_OUTPUT_TAP || format == ATT_OUTPUT_JUNIT) {
+		return;
+	}
+	printf("[  SKIPPED ] %s\n", fullname ? fullname : "<unknown>");
+	printf("  reason: %s\n", reason ? reason : "(none)");
 }
 
 void att_report_summary(const att_summary *summary, bool color_enabled)

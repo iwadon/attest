@@ -416,14 +416,11 @@ void att_context_skip(const char *reason)
 	ctx->result.skipped = true;
 	ctx->result.aborted = false;
 
-	const att_test_case *test = att_context_current_test();
-	const char *test_name = test ? test->fullname : "<unknown>";
-
-	bool suppress_default_output = (ctx->format == ATT_OUTPUT_TAP || ctx->format == ATT_OUTPUT_JUNIT);
-	if (!suppress_default_output) {
-		printf("[  SKIPPED ] %s\n", test_name);
-		printf("  reason: %s\n", reason ? reason : "(none)");
-	}
+	/* Output is the runner's responsibility — we only record the skip
+	 * here. Emitting [ SKIPPED ] directly from this longjmp path used to
+	 * race with att_output_parallel_result() under --jobs>1 (the skip
+	 * line appeared twice: once from this printf during test execution,
+	 * once from the parallel result formatter after join). */
 
 	att_context_fixture_on_abort();
 
@@ -1605,6 +1602,16 @@ static att_status att_subtest_scope_finalize(att_subtest_scope *scope, att_resul
 		status = ATT_STATUS_FAIL;
 	} else {
 		status = ATT_STATUS_OK;
+	}
+
+	/* Subtest-scope skip output. att_context_skip no longer emits this
+	 * itself (it just records state); the runner takes that role. For
+	 * subtests, "the runner" is this finalize hook, since neither the
+	 * sequential nor the parallel top-level runner sees subtest-internal
+	 * skips (they don't propagate to the parent test's result.skipped). */
+	if (sub_result.skipped) {
+		const char *fullname = scope->temp.fullname ? scope->temp.fullname : scope->temp.name;
+		att_emit_skip_default(fullname, sub_result.skip_reason, scope->state.format);
 	}
 
 	att_prepare_subtest_result(&sub_result, out, status);
