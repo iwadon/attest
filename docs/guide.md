@@ -228,7 +228,7 @@ Run tests in parallel for faster execution:
 ```
 
 **Notes:**
-- Tests must be independent (no shared mutable state)
+- Tests must be independent (see [Shared State and Data Races](#shared-state-and-data-races) below)
 - Output is collected per-test and printed in registration order
 - **Format restrictions:** Parallel execution currently emits only the default
   human-readable format. The TAP per-test lines (`ok N` / `not ok N`) and the
@@ -237,6 +237,37 @@ Run tests in parallel for faster execution:
 - **Platform support:** Requires POSIX threads (Linux, macOS). On platforms
   without thread support (e.g., Human68k) or on Windows, `--jobs` silently
   falls back to sequential execution.
+
+### Shared State and Data Races
+
+Under `--jobs > 1` attest runs different test cases on different worker
+threads concurrently. Any state that is **shared across tests** — globals,
+file-scope `static` variables, environment variables, on-disk files, etc. —
+becomes shared mutable state between threads, and concurrent reads and
+writes to it are data races (undefined behaviour) unless you protect them
+yourself.
+
+In particular:
+
+- **Fixture instances are not shared.** `TEST_F` gives every test its own
+  fresh, zero-initialized fixture struct (and runs `setup` / `teardown`
+  per test), so the fixture struct itself is safe.
+- **Anything `static` inside a fixture file is shared.** A common pattern
+  is keeping counters or caches in a file-scope `static int g_calls;` and
+  bumping it from `ATT_FIXTURE_SETUP`. That counter is process-wide, so
+  two workers running two `TEST_F(SameFixture, ...)` cases will increment
+  it concurrently. The increment itself races, and any test that asserts
+  on the counter's value will be flaky.
+- **External resources are shared.** Tests that touch a fixed file path,
+  the current working directory, environment variables, or a shared
+  database have to coordinate or run sequentially.
+
+The cleanest fix is to give each test its own state — for counter-style
+checks, declare a dedicated fixture type used by exactly one test, or pass
+state through the fixture struct rather than through file-scope storage.
+If a test fundamentally cannot be parallelized (e.g. it manipulates
+`chdir`), run that test alone with `--filter=Suite.Name --jobs=1` or
+arrange your CI to invoke it from a separate process.
 
 ---
 
