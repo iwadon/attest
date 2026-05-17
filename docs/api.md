@@ -60,6 +60,10 @@ All assertions come in two variants:
 
 ### Comparison Assertions
 
+These type-generic comparison macros are available only when compiling as
+C11 or later, where `_Generic` is available. In C99 or earlier, use the
+explicit type macros below.
+
 | Macro | Condition |
 |-------|-----------|
 | `ASSERT_EQ(a, b)` / `EXPECT_EQ(a, b)` | `a == b` |
@@ -73,7 +77,7 @@ Type dispatch uses C11 `_Generic` to handle signed/unsigned integers, floating-p
 
 ### Explicit Type Macros (C89 Compatible)
 
-These macros provide type-explicit assertions that work in C89 environments without `_Generic`.
+These macros provide type-explicit assertions that work in C89/C99 environments without `_Generic`.
 
 #### Signed Integer (`INT`)
 

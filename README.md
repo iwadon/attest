@@ -2,7 +2,7 @@
 
 **English** | [日本語](README.ja.md)
 
-A lightweight C11 unit testing framework inspired by GoogleTest, designed for simplicity and automatic test registration.
+A lightweight C unit testing framework inspired by GoogleTest, designed for simplicity and automatic test registration.
 
 ## Features
 
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 
 ## Compiler Support
 
-attest is C99 by default and uses C11 `_Generic` opportunistically (gated by `__STDC_VERSION__`).
+attest's core library and explicit type assertion macros support C99. Type-generic comparison macros such as `ASSERT_EQ` and `EXPECT_EQ` require C11 `_Generic` and are not provided in C99 builds.
 
 | Compiler | Minimum | Notes |
 |----------|---------|-------|

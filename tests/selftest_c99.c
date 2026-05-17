@@ -15,6 +15,12 @@
 #include <stddef.h>
 #include <string.h>
 
+#if defined(ASSERT_EQ) || defined(EXPECT_EQ) || defined(ASSERT_NE) || defined(EXPECT_NE)    \
+	|| defined(ASSERT_LT) || defined(EXPECT_LT) || defined(ASSERT_LE) || defined(EXPECT_LE) \
+	|| defined(ASSERT_GT) || defined(EXPECT_GT) || defined(ASSERT_GE) || defined(EXPECT_GE)
+#error "C99 builds must not expose C11 _Generic comparison macros"
+#endif
+
 /* ------------------------------------------------------------------
  * 明示型マクロの基本動作確認
  * ------------------------------------------------------------------ */

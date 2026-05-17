@@ -10,8 +10,8 @@ if(NOT DEFINED PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-# ライブラリ本体は C99 で動作可能。_Generic 等の C11 機能は
-# include/attest/attest.h 内で __STDC_VERSION__ ガード付きで提供される。
+# ライブラリ本体は C99 で動作可能。ASSERT_EQ 等の型汎用比較マクロは
+# include/attest/attest.h 内で C11 以降に限定して提供される。
 # selftest 側はターゲットごとに C_STANDARD を個別指定する。
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
