@@ -34,7 +34,7 @@ jobs:
           - os: macos-latest
             build_type: Release
             generator: Ninja
-          - os: windows-latest
+          - os: windows-2025
             build_type: Release
             # Use the default Visual Studio generator on Windows so we exercise
             # the MSVC code paths (multi-config) instead of MinGW.
@@ -49,10 +49,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build
-
-      - name: Install Ninja (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install ninja
 
       - name: Configure project
         shell: bash
