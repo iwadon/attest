@@ -154,5 +154,22 @@ TEST(C99Subtest, RunsSuccessfully)
 
 int main(int argc, char **argv)
 {
+#if !defined(__GNUC__) && !defined(__clang__) && !defined(_MSC_VER)
+	ATT_REGISTER_TESTS(
+		ATT_TEST_REF(C99Assert, IntCompare),
+		ATT_TEST_REF(C99Assert, UintCompare),
+		ATT_TEST_REF(C99Assert, PointerCompare),
+		ATT_TEST_REF(C99Assert, NullChecks),
+		ATT_TEST_REF(C99Assert, Booleans),
+		ATT_TEST_REF(C99Assert, Strings),
+		ATT_TEST_REF(C99Assert, Memory),
+		ATT_TEST_REF(C99Assert, Near),
+		ATT_TEST_REF(C99Assert, CustomMessage),
+		att_fixture_setup_autoreg_C99Fixture,
+		att_fixture_teardown_autoreg_C99Fixture,
+		ATT_TEST_REF(C99Fixture, ProvidesValue),
+		ATT_TEST_REF(C99Skip, ConditionalSkip),
+		ATT_TEST_REF(C99Subtest, RunsSuccessfully));
+#endif
 	return attest_main(argc, argv);
 }

@@ -473,7 +473,7 @@ int attest_main(int argc, char **argv)
 
 cleanup:
 	if (registry_locked) {
-		registry->frozen = false;
+		att_registry_get()->frozen = false;
 	}
 	att_cli_dispose(&opts);
 	return exit_code;

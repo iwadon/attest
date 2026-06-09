@@ -89,30 +89,43 @@ endif()
 if(ATTEST_BUILD_TESTING)
   enable_testing()
 
-  add_executable(attest_selftest
-      tests/selftest_main.c
-  )
+  # C11 サポートの検出 — _Generic が使えなければ C11 テストをスキップする
+  include(CheckCSourceCompiles)
+  set(CMAKE_REQUIRED_FLAGS "-std=c11")
+  check_c_source_compiles("
+    #define typestr(x) _Generic((x), int: \"int\", default: \"other\")
+    int main(void) { return typestr(0)[0] == 'i' ? 0 : 1; }
+  " ATTEST_HAS_C11_GENERIC)
+  unset(CMAKE_REQUIRED_FLAGS)
 
-  target_link_libraries(attest_selftest PRIVATE attest)
-  target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  if(ATTEST_HAS_C11_GENERIC)
+    add_executable(attest_selftest
+        tests/selftest_main.c
+    )
 
-  # selftest_main.c は _Generic を使うため C11 を要求する
-  set_target_properties(attest_selftest PROPERTIES
-      C_STANDARD 11
-      C_STANDARD_REQUIRED ON
-  )
+    target_link_libraries(attest_selftest PRIVATE attest)
+    target_include_directories(attest_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-  # Link math library on Unix-like systems and Human68k (for nextafter in ULP tests)
-  if(UNIX OR ATTEST_TARGET_HUMAN68K)
-      target_link_libraries(attest_selftest PRIVATE m)
+    # selftest_main.c は _Generic を使うため C11 を要求する
+    set_target_properties(attest_selftest PROPERTIES
+        C_STANDARD 11
+        C_STANDARD_REQUIRED ON
+    )
+
+    # Link math library on Unix-like systems and Human68k (for nextafter in ULP tests)
+    if(UNIX OR ATTEST_TARGET_HUMAN68K)
+        target_link_libraries(attest_selftest PRIVATE m)
+    endif()
+
+    # Platform-specific compile definitions for tests
+    if(NOT WIN32)
+        target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
+    endif()
+
+    add_test(NAME attest_selftest COMMAND attest_selftest)
+  else()
+    message(STATUS "attest: skipping attest_selftest (compiler lacks C11 _Generic support)")
   endif()
-
-  # Platform-specific compile definitions for tests
-  if(NOT WIN32)
-      target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
-  endif()
-
-  add_test(NAME attest_selftest COMMAND attest_selftest)
 
   # C99スモークテスト: 明示型マクロのみで主要機能を検証する
   add_executable(attest_selftest_c99
