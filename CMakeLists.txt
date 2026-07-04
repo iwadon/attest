@@ -67,8 +67,10 @@ if(WIN32)
         target_compile_options(attest PUBLIC /source-charset:utf-8)
     endif()
 else()
-    # POSIX: Define _POSIX_C_SOURCE for signal and timer features
-    target_compile_definitions(attest PRIVATE
+    # POSIX: Define _POSIX_C_SOURCE for signal and timer features.
+    # PUBLIC because attest.h uses sigjmp_buf, which requires _POSIX_C_SOURCE
+    # to be defined before <features.h> is first included (glibc).
+    target_compile_definitions(attest PUBLIC
         _POSIX_C_SOURCE=200809L
     )
 endif()
@@ -117,11 +119,6 @@ if(ATTEST_BUILD_TESTING)
         target_link_libraries(attest_selftest PRIVATE m)
     endif()
 
-    # Platform-specific compile definitions for tests
-    if(NOT WIN32)
-        target_compile_definitions(attest_selftest PRIVATE _POSIX_C_SOURCE=200809L)
-    endif()
-
     add_test(NAME attest_selftest COMMAND attest_selftest)
   else()
     message(STATUS "attest: skipping attest_selftest (compiler lacks C11 _Generic support)")
@@ -139,9 +136,6 @@ if(ATTEST_BUILD_TESTING)
   if(UNIX OR ATTEST_TARGET_HUMAN68K)
       target_link_libraries(attest_selftest_c99 PRIVATE m)
   endif()
-  if(NOT WIN32)
-      target_compile_definitions(attest_selftest_c99 PRIVATE _POSIX_C_SOURCE=200809L)
-  endif()
   add_test(NAME attest_selftest_c99 COMMAND attest_selftest_c99)
 
   # Timeout test executable (for manual testing)
@@ -149,11 +143,6 @@ if(ATTEST_BUILD_TESTING)
       tests/timeout_test.c
   )
   target_link_libraries(attest_timeout_test PRIVATE attest)
-
-  # Platform-specific compile definitions for timeout test
-  if(NOT WIN32)
-      target_compile_definitions(attest_timeout_test PRIVATE _POSIX_C_SOURCE=200809L)
-  endif()
 
   # Thread detection test executable (for verifying Phase 1 implementation)
   add_executable(attest_thread_detection_test
@@ -163,11 +152,6 @@ if(ATTEST_BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
-
-  # Platform-specific compile definitions for thread detection test
-  if(NOT WIN32)
-      target_compile_definitions(attest_thread_detection_test PRIVATE _POSIX_C_SOURCE=200809L)
-  endif()
 endif()
 
 # ---------------------------------------------------------------------------
