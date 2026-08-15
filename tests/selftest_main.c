@@ -584,14 +584,11 @@ TEST(Output, EqualityFailureFormatting)
 	ASSERT_EQ(ATT_STATUS_FAIL, status);
 	ASSERT_TRUE(captured.data != NULL);
 
-	const char *expected_line = strstr(captured.data, "    expected: 42");
-	ASSERT_TRUE(expected_line != NULL);
-	const char *actual_line = strstr(captured.data, "      actual: 24");
-	ASSERT_TRUE(actual_line != NULL);
-	EXPECT_TRUE(expected_line < actual_line);
-
-	const char *expr_line = strstr(captured.data, "    expr: expected=42, actual=24");
-	ASSERT_TRUE(expr_line != NULL);
+	const char *lhs_line = strstr(captured.data, "    lhs: expected = 42");
+	ASSERT_TRUE(lhs_line != NULL);
+	const char *rhs_line = strstr(captured.data, "    rhs: actual = 24");
+	ASSERT_TRUE(rhs_line != NULL);
+	EXPECT_TRUE(lhs_line < rhs_line);
 
 	const char *context_line = strstr(captured.data, "  context: context from eq failure");
 	ASSERT_TRUE(context_line != NULL);

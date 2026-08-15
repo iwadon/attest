@@ -330,9 +330,8 @@ output. Only failures and skips are reported, followed by a final summary.
 [==========] Running 10 tests from 3 suites.
 [  FAILED  ] Math.Division
   test.c:15: EXPECT_EQ(result, 2) failed.
-    expected: 2
-      actual: 3
-    expr: result=3, 2=2
+    lhs: result = 3
+    rhs: 2 = 2
 [  SKIPPED ] Platform.LinuxOnly
   reason: Linux only
 [==========] 10 tests ran. 1 failures, 1 skipped.
@@ -345,6 +344,29 @@ When tests run in parallel (`--jobs=N` with `N > 1`), each test additionally
 emits `[ RUN      ]` / `[       OK ]` / `[  FAILED  ]` markers as it completes,
 to make worker progress visible. Sequential runs omit those markers for
 brevity.
+
+### Argument Order in Comparisons
+
+attest does not assign "expected" and "actual" meaning to the two arguments
+of a symmetric comparison assertion — `EQ`/`NE`/`LT`/`LE`/`GT`/`GE` (and
+single-line `STREQ`/`STRNE`). The framework has no way to know which side is
+the expectation, and for `LT`/`LE`/`GT`/`GE` that distinction does not exist
+in the first place. Failure output reports both sides neutrally, as `lhs`
+and `rhs`:
+
+```
+    lhs: result = 3
+    rhs: 2 = 2
+```
+
+Either argument order is fine: `ASSERT_EQ(actual, expected)` and
+`ASSERT_EQ(expected, actual)` both produce correct, non-misleading output.
+(GoogleTest made the same change in February 2016, deprecating the
+expected-first convention and treating both parameters identically.)
+
+Assertions that compare a fixed expectation or a required condition against
+an observation keep the `expected:`/`actual:` labels, because there the
+asymmetry is real: `TRUE`/`FALSE`, `NEAR`/`NEAR_REL`, `MEMEQ`, `ULP_EQ`.
 
 ### TAP 13
 

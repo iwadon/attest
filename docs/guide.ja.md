@@ -300,9 +300,8 @@ target_link_libraries(my_tests PRIVATE attest)
 [==========] Running 10 tests from 3 suites.
 [  FAILED  ] Math.Division
   test.c:15: EXPECT_EQ(result, 2) failed.
-    expected: 2
-      actual: 3
-    expr: result=3, 2=2
+    lhs: result = 3
+    rhs: 2 = 2
 [  SKIPPED ] Platform.LinuxOnly
   reason: Linux only
 [==========] 10 tests ran. 1 failures, 1 skipped.
@@ -312,6 +311,28 @@ target_link_libraries(my_tests PRIVATE attest)
 ```
 
 並列実行（`--jobs=N`、`N > 1`）の場合は、ワーカーの進捗を可視化するためテスト完了ごとに `[ RUN      ]` / `[       OK ]` / `[  FAILED  ]` マーカも出力します。逐次実行では簡潔さのためこれらのマーカは省略されます。
+
+### 比較アサーションの引数順序
+
+attest は対称な比較アサーション — `EQ`/`NE`/`LT`/`LE`/`GT`/`GE`（および1行の
+`STREQ`/`STRNE`）— の2つの引数に「expected（期待値）」「actual（実際の値）」
+という意味を割り当てません。フレームワークにはどちらが期待値かを知る手段が
+なく、そもそも `LT`/`LE`/`GT`/`GE` にはその区別自体が存在しません。失敗時
+の出力は両辺を対等に `lhs` / `rhs` として報告します。
+
+```
+    lhs: result = 3
+    rhs: 2 = 2
+```
+
+引数の順序はどちらでも構いません。`ASSERT_EQ(actual, expected)` と
+`ASSERT_EQ(expected, actual)` はどちらも同じく正しく、誤解を招かない出力を
+生成します（GoogleTest も2016年2月に同様の変更を行い、expected を先に置く
+慣習を廃止して両パラメータを対等に扱うようになりました）。
+
+固定の期待値や条件を観測値と比較するアサーションは、非対称性が実在するため
+`expected:` / `actual:` のラベルを維持しています： `TRUE`/`FALSE`、
+`NEAR`/`NEAR_REL`、`MEMEQ`、`ULP_EQ`。
 
 ### TAP 13
 

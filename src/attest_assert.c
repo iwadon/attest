@@ -785,6 +785,25 @@ static void att_report_failure(bool fatal, const char *assertion, const char *fi
 	att_context_failure_append_format("    expr: %s\n", expr_detail);
 }
 
+/* Symmetric variant for comparisons where neither side is a fixed "expectation"
+ * (numeric/pointer/string EQ/NE/LT/LE/GT/GE). Emits a two-line lhs/rhs block
+ * that merges the expression text and its evaluated value, instead of the
+ * expected/actual/expr three-line block used by att_report_failure(). */
+static void att_report_failure_symmetric(bool fatal, const char *assertion, const char *file, int line, const char *lhs_expr, const char *lhs_value, const char *rhs_expr, const char *rhs_value)
+{
+	att_failure_context fc = att_failure_begin();
+	att_print_info_stack_and_location(&fc, assertion, file, line, fatal);
+
+	if (!fc.suppress) {
+		fprintf(fc.out, "    lhs: %s = %s\n", lhs_expr, lhs_value);
+	}
+	att_context_failure_append_format("    lhs: %s = %s\n", lhs_expr, lhs_value);
+	if (!fc.suppress) {
+		fprintf(fc.out, "    rhs: %s = %s\n", rhs_expr, rhs_value);
+	}
+	att_context_failure_append_format("    rhs: %s = %s\n", rhs_expr, rhs_value);
+}
+
 #define ATT_DEFINE_COMPARE(name, type)                         \
 	static bool att_compare_##name(int op, type lhs, type rhs) \
 	{                                                          \
@@ -829,9 +848,7 @@ ATT_DEFINE_COMPARE(pointer_values, uintptr_t)
 		if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {                                                                                                \
 			rhs_fmt.text = rhs_fmt.buffer;                                                                                                                      \
 		}                                                                                                                                                       \
-		const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);                                                                        \
-		att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);                                                         \
-		att_format_free(expr);                                                                                                                                  \
+		att_report_failure_symmetric(fatal, assertion, file, line, lhs_expr, lhs_fmt.text, rhs_expr, rhs_fmt.text);                                             \
 		if (fatal) {                                                                                                                                            \
 			att_context_abort();                                                                                                                                \
 		}                                                                                                                                                       \
@@ -859,9 +876,7 @@ void att_handle_compare_pointer(int op, const char *assertion, const char *file,
 	if (rhs_fmt.text == NULL || rhs_fmt.buffer[0] != '\0') {
 		rhs_fmt.text = rhs_fmt.buffer;
 	}
-	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	att_report_failure(fatal, assertion, file, line, lhs_fmt.text, rhs_fmt.text, expr, NULL, NULL);
-	att_format_free(expr);
+	att_report_failure_symmetric(fatal, assertion, file, line, lhs_expr, lhs_fmt.text, rhs_expr, rhs_fmt.text);
 	if (fatal) {
 		att_context_abort();
 	}
@@ -1013,7 +1028,8 @@ static size_t att_find_first_diff(const char *lhs, const char *rhs)
 	return i;
 }
 
-static void att_print_line_diff(FILE *out, size_t line_num, const char *expected, const char *actual)
+/* lhs renders as the '-' line, rhs as the '+' line (git-style diff). */
+static void att_print_line_diff(FILE *out, size_t line_num, const char *lhs, const char *rhs)
 {
 	const char *bg_dark_red = att_color_bg_dark_red();
 	const char *bg_dark_green = att_color_bg_dark_green();
@@ -1022,50 +1038,50 @@ static void att_print_line_diff(FILE *out, size_t line_num, const char *expected
 	const char *reset = att_color_reset();
 	bool color = att_context_color_enabled();
 
-	if (expected && actual && strcmp(expected, actual) == 0) {
-		fprintf(out, "  %3zu  %s\n", line_num, expected);
+	if (lhs && rhs && strcmp(lhs, rhs) == 0) {
+		fprintf(out, "  %3zu  %s\n", line_num, lhs);
 		return;
 	}
 
-	if (expected && actual) {
-		size_t diff_pos = att_find_first_diff(expected, actual);
-		size_t exp_len = strlen(expected);
-		size_t act_len = strlen(actual);
+	if (lhs && rhs) {
+		size_t diff_pos = att_find_first_diff(lhs, rhs);
+		size_t lhs_len = strlen(lhs);
+		size_t rhs_len = strlen(rhs);
 
 		fprintf(out, "  %3zu -%s", line_num, color ? bg_dark_red : "");
-		for (size_t i = 0; i < exp_len; i++) {
-			if (color && i >= diff_pos && (i >= act_len || expected[i] != actual[i])) {
-				fprintf(out, "%s%c%s%s", bg_red, expected[i], reset, bg_dark_red);
+		for (size_t i = 0; i < lhs_len; i++) {
+			if (color && i >= diff_pos && (i >= rhs_len || lhs[i] != rhs[i])) {
+				fprintf(out, "%s%c%s%s", bg_red, lhs[i], reset, bg_dark_red);
 			} else if (color) {
-				fprintf(out, "%s%c", bg_dark_red, expected[i]);
+				fprintf(out, "%s%c", bg_dark_red, lhs[i]);
 			} else {
-				fputc(expected[i], out);
+				fputc(lhs[i], out);
 			}
 		}
 		fprintf(out, "%s\n", reset);
 
 		fprintf(out, "  %3zu +%s", line_num, color ? bg_dark_green : "");
-		for (size_t i = 0; i < act_len; i++) {
-			if (color && i >= diff_pos && (i >= exp_len || expected[i] != actual[i])) {
-				fprintf(out, "%s%c%s%s", bg_green, actual[i], reset, bg_dark_green);
+		for (size_t i = 0; i < rhs_len; i++) {
+			if (color && i >= diff_pos && (i >= lhs_len || lhs[i] != rhs[i])) {
+				fprintf(out, "%s%c%s%s", bg_green, rhs[i], reset, bg_dark_green);
 			} else if (color) {
-				fprintf(out, "%s%c", bg_dark_green, actual[i]);
+				fprintf(out, "%s%c", bg_dark_green, rhs[i]);
 			} else {
-				fputc(actual[i], out);
+				fputc(rhs[i], out);
 			}
 		}
 		fprintf(out, "%s\n", reset);
-	} else if (expected) {
-		fprintf(out, "  %3zu -%s%s%s\n", line_num, color ? bg_dark_red : "", expected, reset);
-	} else if (actual) {
-		fprintf(out, "  %3zu +%s%s%s\n", line_num, color ? bg_dark_green : "", actual, reset);
+	} else if (lhs) {
+		fprintf(out, "  %3zu -%s%s%s\n", line_num, color ? bg_dark_red : "", lhs, reset);
+	} else if (rhs) {
+		fprintf(out, "  %3zu +%s%s%s\n", line_num, color ? bg_dark_green : "", rhs, reset);
 	}
 }
 
-static void att_format_string_diff(FILE *out, const char *expected, const char *actual)
+static void att_format_string_diff(FILE *out, const char *lhs, const char *rhs)
 {
-	att_string_lines exp_lines = att_split_lines(expected);
-	att_string_lines act_lines = att_split_lines(actual);
+	att_string_lines exp_lines = att_split_lines(lhs);
+	att_string_lines act_lines = att_split_lines(rhs);
 
 	size_t max_lines = exp_lines.count > act_lines.count ? exp_lines.count : act_lines.count;
 
@@ -1101,18 +1117,11 @@ static void att_handle_string_simple(const att_failure_context *fc, const char *
 		rhs_fmt.text = rhs_fmt.buffer;
 	}
 	if (!fc->suppress) {
-		fprintf(fc->out, "    expected: %s\n", lhs_fmt.text);
-		fprintf(fc->out, "      actual: %s\n", rhs_fmt.text);
+		fprintf(fc->out, "    lhs: %s = %s\n", lhs_expr, lhs_fmt.text);
+		fprintf(fc->out, "    rhs: %s = %s\n", rhs_expr, rhs_fmt.text);
 	}
-	att_context_failure_append_format("    expected: %s\n", lhs_fmt.text);
-	att_context_failure_append_format("      actual: %s\n", rhs_fmt.text);
-
-	const char *expr = att_build_expr_alloc(lhs_expr, &lhs_fmt, rhs_expr, &rhs_fmt);
-	if (!fc->suppress) {
-		fprintf(fc->out, "    expr: %s\n", expr);
-	}
-	att_context_failure_append_format("    expr: %s\n", expr);
-	att_format_free(expr);
+	att_context_failure_append_format("    lhs: %s = %s\n", lhs_expr, lhs_fmt.text);
+	att_context_failure_append_format("    rhs: %s = %s\n", rhs_expr, rhs_fmt.text);
 }
 
 void att_handle_string(int op, const char *assertion, const char *file, int line, bool fatal, const char *lhs_expr, const char *rhs_expr, const char *lhs, const char *rhs)
@@ -1250,7 +1259,7 @@ void att_handle_near(const char *assertion, const char *file, int line, bool fat
 		if (diff_fmt.text == NULL || diff_fmt.buffer[0] != '\0') {
 			diff_fmt.text = diff_fmt.buffer;
 		}
-		actual_buf = att_format_or_fallback(att_format_alloc("|lhs - rhs| = %s", diff_fmt.text));
+		actual_buf = att_format_or_fallback(att_format_alloc("|%s - %s| = %s", lhs_expr, rhs_expr, diff_fmt.text));
 	}
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "epsilon", eps_fmt.text);
@@ -1322,7 +1331,7 @@ void att_handle_near_rel(const char *assertion, const char *file, int line, bool
 		if (threshold_fmt.text == NULL || threshold_fmt.buffer[0] != '\0') {
 			threshold_fmt.text = threshold_fmt.buffer;
 		}
-		actual_buf = att_format_or_fallback(att_format_alloc("|lhs - rhs| = %s, threshold = %s", diff_fmt.text, threshold_fmt.text));
+		actual_buf = att_format_or_fallback(att_format_alloc("|%s - %s| = %s, threshold = %s", lhs_expr, rhs_expr, diff_fmt.text, threshold_fmt.text));
 	}
 
 	att_report_failure(fatal, assertion, file, line, expected_buf, actual_buf, expr, "rel_eps", eps_fmt.text);

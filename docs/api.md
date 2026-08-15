@@ -75,6 +75,12 @@ explicit type macros below.
 
 Type dispatch uses C11 `_Generic` to handle signed/unsigned integers, floating-point, and pointers.
 
+**Argument order:** these comparisons are symmetric — attest does not treat
+either argument as "expected" or "actual". Failure output reports both
+sides neutrally as `lhs`/`rhs`, so either argument order produces correct
+output. See [User Guide: Argument Order in Comparisons](guide.md#argument-order-in-comparisons)
+for details.
+
 ### Explicit Type Macros (C89 Compatible)
 
 These macros provide type-explicit assertions that work in C89/C99 environments without `_Generic`.
