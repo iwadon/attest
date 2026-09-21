@@ -29,6 +29,13 @@ endif()
 
 set(CMAKE_SYSROOT "${_mcc_sysroot}")
 
+# NOTE: the `-std=` support probe used to select C_STANDARD flag mapping
+# lives in mcc_overrides.cmake, not here — see the comment there. This file
+# (the toolchain file) is not re-included for check_c_source_compiles()/
+# try_compile() sub-builds, so anything computed only here (e.g. a variable
+# set from `execute_process` on ${MCC_EXECUTABLE}) is invisible to them;
+# mcc_overrides.cmake is re-included in every such sub-build instead.
+
 set(CMAKE_C_COMPILER   "${MCC_EXECUTABLE}")
 # set(CMAKE_CXX_COMPILER "${MCC_EXECUTABLE}")
 set(CMAKE_AR "${MCC_AR_EXECUTABLE}")

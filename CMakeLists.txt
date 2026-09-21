@@ -92,13 +92,24 @@ if(ATTEST_BUILD_TESTING)
   enable_testing()
 
   # C11 サポートの検出 — _Generic が使えなければ C11 テストをスキップする
+  # 生の "-std=c11" (GCC/Clang 前提) ではなく CMAKE_C_STANDARD 経由で試す。
+  # try_compile は CMP0067 (3.8+, NEW) 下で CMAKE_C_STANDARD をコンパイラ固有の
+  # フラグに変換するため、cmake/mcc_overrides.cmake の設定もそのまま効く。
+  # REQUIRED は OFF のまま: C11 フラグを持たないコンパイラで ON にすると
+  # configure 自体が停止し、「C11 テストをスキップする」という意図から外れる。
   include(CheckCSourceCompiles)
-  set(CMAKE_REQUIRED_FLAGS "-std=c11")
+  set(_attest_saved_c_standard "${CMAKE_C_STANDARD}")
+  set(_attest_saved_c_standard_required "${CMAKE_C_STANDARD_REQUIRED}")
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD_REQUIRED OFF)
   check_c_source_compiles("
     #define typestr(x) _Generic((x), int: \"int\", default: \"other\")
     int main(void) { return typestr(0)[0] == 'i' ? 0 : 1; }
   " ATTEST_HAS_C11_GENERIC)
-  unset(CMAKE_REQUIRED_FLAGS)
+  set(CMAKE_C_STANDARD "${_attest_saved_c_standard}")
+  set(CMAKE_C_STANDARD_REQUIRED "${_attest_saved_c_standard_required}")
+  unset(_attest_saved_c_standard)
+  unset(_attest_saved_c_standard_required)
 
   if(ATTEST_HAS_C11_GENERIC)
     add_executable(attest_selftest

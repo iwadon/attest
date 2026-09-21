@@ -32,6 +32,8 @@ int main(void)
 	printf("Platform: Windows\n");
 #elif defined(ATT_PLATFORM_POSIX)
 	printf("Platform: POSIX\n");
+#elif defined(ATT_PLATFORM_HUMAN68K)
+	printf("Platform: Human68k\n");
 #else
 	printf("ERROR: No platform detected!\n");
 	return 1;

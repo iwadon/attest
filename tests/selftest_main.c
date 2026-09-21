@@ -277,6 +277,8 @@ TEST(Assert, NearRelFailures)
 
 TEST(Assert, NearRelAssertFatal)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	/* Test that ASSERT_NEAR_REL is fatal */
 	att_result result;
 	att_capture_begin();
@@ -444,6 +446,8 @@ TEST(Assert, UlpEqFailures)
 
 TEST(Assert, UlpEqAssertFatal)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	/* Test that ASSERT_ULP_EQ is fatal */
 	att_result result;
 	att_capture_begin();
@@ -538,6 +542,8 @@ TEST(Skip, SubtestRecordsSkip)
 
 TEST(Subtest, ReportsFailures)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	att_result result;
 	att_capture_begin();
 	att_status status = att_run_subtest("nonfatal", att_subtest_nonfatal, NULL, &result);
@@ -549,6 +555,8 @@ TEST(Subtest, ReportsFailures)
 
 TEST(Subtest, RecordsAbort)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	att_result result;
 	att_capture_begin();
 	att_status status = att_run_subtest("fatal", att_subtest_fatal, NULL, &result);
@@ -564,6 +572,8 @@ TEST(Subtest, ExpectFailsMacroPasses)
 
 TEST(Subtest, ExpectFailsMacroRegistersFailure)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	att_result result;
 	att_capture_begin();
 	att_status status = att_run_subtest("macro mismatch", att_macro_mismatch, NULL, &result);
@@ -575,6 +585,7 @@ TEST(Subtest, ExpectFailsMacroRegistersFailure)
 TEST(Output, EqualityFailureFormatting)
 {
 	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
 
 	ASSERT_EQ(0, att_capture_begin());
 	att_result result;
@@ -599,6 +610,7 @@ TEST(Output, EqualityFailureFormatting)
 TEST(ScopedInfo, ReportsContextOnFailure)
 {
 	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
 
 	att_captured captured;
 	ASSERT_EQ(0, att_capture_begin());
@@ -623,6 +635,8 @@ TEST(ScopedInfo, ReportsContextOnFailure)
 
 TEST(Capture, CapturesStderr)
 {
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
+
 	ASSERT_EQ(0, att_capture_begin());
 	fprintf(stderr, "capture-test\n");
 	att_captured captured;
@@ -632,6 +646,19 @@ TEST(Capture, CapturesStderr)
 	EXPECT_EQ((int)expected, (int)captured.size);
 	EXPECT_EQ(0, strncmp(captured.data, "capture-test\n", expected));
 	free(captured.data);
+}
+
+TEST(Capture, SupportedMatchesBegin)
+{
+	if (att_capture_supported()) {
+		ASSERT_EQ(0, att_capture_begin());
+		att_captured captured;
+		ASSERT_EQ(0, att_capture_end(&captured));
+		free(captured.data);
+	} else {
+		ASSERT_EQ(-1, att_capture_begin());
+		ASSERT_EQ(-1, att_capture_end(NULL));
+	}
 }
 
 TEST(LongDouble, BasicComparisons)
@@ -731,6 +758,7 @@ TEST(CustomAssert, PassingCondition)
 TEST(CustomAssert, FailingExpect)
 {
 	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
 
 	att_captured captured;
 	ASSERT_EQ(0, att_capture_begin());
@@ -755,6 +783,7 @@ TEST(CustomAssert, FailingExpect)
 TEST(CustomAssert, FailingAssert)
 {
 	ATT_SKIP_IF(att_context_get_format() != ATT_OUTPUT_DEFAULT, "test requires default output format");
+	ATT_SKIP_IF(!att_capture_supported(), "stderr capture not supported on this platform");
 
 	att_captured captured;
 	ASSERT_EQ(0, att_capture_begin());

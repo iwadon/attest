@@ -154,7 +154,7 @@ TEST(C99Subtest, RunsSuccessfully)
 
 int main(int argc, char **argv)
 {
-#if !defined(__GNUC__) && !defined(__clang__) && !defined(_MSC_VER)
+#if !ATT_HAS_AUTOREG
 	ATT_REGISTER_TESTS(
 		ATT_TEST_REF(C99Assert, IntCompare),
 		ATT_TEST_REF(C99Assert, UintCompare),

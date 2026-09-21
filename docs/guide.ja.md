@@ -388,20 +388,23 @@ TEST(LongRunning, WithProgress) {
 
 ## 手動登録
 
-`__attribute__((constructor))` 非対応コンパイラ向け：
+`__attribute__((constructor))` 非対応コンパイラ向け。`ATT_HAS_AUTOREG`
+（コンストラクタ属性または MSVC の `.CRT$XCU` セクション経由で自動登録される
+場合は `1`、そうでない場合は `0`）で手動登録の呼び出しをガードします。
 
 ```c
 // 通常通りテストを定義
 TEST(Suite, Test1) { ... }
 TEST(Suite, Test2) { ... }
 
-// 手動で登録
-ATT_REGISTER_TESTS(
-    &test_Suite_Test1_register,
-    &test_Suite_Test2_register
-);
-
 int main(int argc, char **argv) {
+#if !ATT_HAS_AUTOREG
+    // 手動で登録
+    ATT_REGISTER_TESTS(
+        &test_Suite_Test1_register,
+        &test_Suite_Test2_register
+    );
+#endif
     return attest_main(argc, argv);
 }
 ```

@@ -422,20 +422,23 @@ TEST(LongRunning, WithProgress) {
 
 ## Manual Registration
 
-For compilers without `__attribute__((constructor))`:
+For compilers without `__attribute__((constructor))`. Check `ATT_HAS_AUTOREG`
+(defined to `1` when tests self-register via constructor attributes or the
+MSVC `.CRT$XCU` section, `0` otherwise) to guard the manual registration call:
 
 ```c
 // Define tests normally
 TEST(Suite, Test1) { ... }
 TEST(Suite, Test2) { ... }
 
-// Manually register
-ATT_REGISTER_TESTS(
-    &test_Suite_Test1_register,
-    &test_Suite_Test2_register
-);
-
 int main(int argc, char **argv) {
+#if !ATT_HAS_AUTOREG
+    // Manually register
+    ATT_REGISTER_TESTS(
+        &test_Suite_Test1_register,
+        &test_Suite_Test2_register
+    );
+#endif
     return attest_main(argc, argv);
 }
 ```

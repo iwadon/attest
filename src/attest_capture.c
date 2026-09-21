@@ -11,10 +11,16 @@
 
 #include "internal/attest_internal.h"
 
-#if defined(ATT_PLATFORM_HUMAN68K)
+#if defined(ATT_PLATFORM_HUMAN68K) && !defined(ATT_CAPTURE_DISABLED)
 /* Human68k: capture not supported (no dup/dup2 available) */
 #define ATT_CAPTURE_DISABLED
-#elif defined(_WIN32)
+#endif
+
+/* A user-supplied -DATT_CAPTURE_DISABLED (on any platform, e.g. to simulate
+ * Human68k on a host build) also selects the stub path below, skipping the
+ * dup/dup2 macro definitions entirely. */
+#if !defined(ATT_CAPTURE_DISABLED)
+#if defined(_WIN32)
 #include <io.h>
 #define ATT_DUP _dup
 #define ATT_DUP2 _dup2
@@ -26,6 +32,7 @@
 #define ATT_DUP2 dup2
 #define ATT_CLOSE close
 #define ATT_FILENO fileno
+#endif
 #endif
 
 /* Capture serialization.
@@ -121,6 +128,11 @@ static BOOL CALLBACK att_capture_cs_init(PINIT_ONCE once, PVOID param, PVOID *ct
 #ifdef ATT_CAPTURE_DISABLED
 /* Human68k: Stub implementations for disabled capture functionality */
 
+bool att_capture_supported(void)
+{
+	return false;
+}
+
 int att_capture_begin(void)
 {
 	/* No-op: capture not supported */
@@ -139,6 +151,11 @@ int att_capture_end(att_captured *out)
 
 #else
 /* Full capture implementation for platforms with dup/dup2 support */
+
+bool att_capture_supported(void)
+{
+	return true;
+}
 
 typedef struct att_capture_state {
 	int original_fd;

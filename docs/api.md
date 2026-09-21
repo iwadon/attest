@@ -348,9 +348,28 @@ compiled as no-ops that return `-1`. Tests that depend on
 expected failure noise) still validate the failure counts on Human68k, but
 the captured-output replay step is skipped.
 
+### att_capture_supported()
+
+Returns `true` when the current platform's `att_capture_begin()` /
+`att_capture_end()` implementation actually captures stderr, and `false`
+when capture is compiled out (e.g. Human68k), where `att_capture_begin()`
+always returns `-1`. Defining `ATT_CAPTURE_DISABLED` on the compiler command
+line forces the stub (no-capture) implementation on any platform, which is
+useful for simulating Human68k on a host build.
+
+attest's own self-test suite (`tests/selftest_main.c`) calls
+`att_capture_supported()` and uses `ATT_SKIP_IF(!att_capture_supported(), ...)`
+to skip tests that depend on capture actually working, so the suite still
+passes (with those tests reported as skipped) on platforms without capture
+support.
+
 ---
 
 ## Manual Registration
+
+The macro `ATT_HAS_AUTOREG` is `1` when tests self-register via constructor
+attributes or the MSVC `.CRT$XCU` section, and `0` otherwise; check
+`#if !ATT_HAS_AUTOREG` to decide whether manual registration is needed.
 
 For compilers without constructor attribute support:
 

@@ -109,6 +109,10 @@ typedef struct att_captured {
 int att_capture_begin(void);
 int att_capture_end(att_captured *out);
 
+/* Returns false on platforms where stderr capture is compiled out (e.g.
+ * Human68k); att_capture_begin() returns -1 there. */
+bool att_capture_supported(void);
+
 void att_register_test(const char *suite, const char *name, att_test_fn fn, const char *file, int line);
 
 #define ATT_COMP_EQ 0
@@ -544,8 +548,9 @@ struct att_info_scope {
 #define ATT_CONCAT3(a, b, c) ATT_CONCAT(ATT_CONCAT(a, b), c)
 #define ATT_SUFFIX(name) _##name
 
-/* Scoped info - cleanup attribute support varies by compiler */
-#if defined(__GNUC__) || defined(__clang__)
+/* Scoped info - cleanup attribute support varies by compiler.
+ * mcc (Human68k) implements __attribute__((cleanup)) with GCC semantics. */
+#if defined(__GNUC__) || defined(__clang__) || defined(__MCC__)
 #define SCOPED_INFO(fmt, ...)                \
 	att_info_scope_push(fmt, ##__VA_ARGS__); \
 	att_info_scope_t ATT_CONCAT(att__scope_, __LINE__) __attribute__((cleanup(att_info_scope_pop_impl))) = { 0 }
@@ -561,18 +566,25 @@ struct att_info_scope {
 #define ATT_UNIQUE_ID(prefix) ATT_CONCAT(prefix, __LINE__)
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
+/* mcc (Human68k) implements GCC-style constructor attributes */
+#if defined(__GNUC__) || defined(__clang__) || defined(__MCC__)
 #define ATT_AUTOREG(fn)                                \
 	static void fn(void) __attribute__((constructor)); \
 	static void fn(void)
+/* ATT_HAS_AUTOREG: 1 when tests self-register via constructor attributes or
+ * the MSVC .CRT$XCU section, 0 otherwise. Users check `#if !ATT_HAS_AUTOREG`
+ * to decide whether ATT_REGISTER_TESTS() is needed. */
+#define ATT_HAS_AUTOREG 1
 #elif defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
 #define ATT_AUTOREG(fn)                                                               \
 	static void __cdecl fn(void);                                                     \
 	__declspec(allocate(".CRT$XCU")) void(__cdecl * ATT_CONCAT(fn, _ptr))(void) = fn; \
 	static void __cdecl fn(void)
+#define ATT_HAS_AUTOREG 1
 #else
 #define ATT_AUTOREG(fn) static void fn(void)
+#define ATT_HAS_AUTOREG 0
 #endif
 
 #define ATT_TEST_FN_NAME(Suite, Name) ATT_CONCAT3(att_test_fn_, Suite, ATT_SUFFIX(Name))

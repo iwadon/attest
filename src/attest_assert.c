@@ -48,7 +48,7 @@ typedef struct att_context_state {
 	bool timeout_init_failed;
 	unsigned int timeout_check_counter;
 #endif
-} ATT_ALIGN(16) att_context_state;
+} att_context_state;
 
 static ATT_THREAD_LOCAL ATT_ALIGN(16) att_context_state g_ctx_root;
 static ATT_THREAD_LOCAL att_context_state *g_ctx;
