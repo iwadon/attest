@@ -86,6 +86,11 @@ attest/
 - `att_capture_begin()` が stderr を内部バッファへリダイレクト
 - `att_capture_end()` がキャプチャされた内容を返す
 - 非リエントラント（ネスト不可）
+- `att_capture_supported()` はキャプチャがコンパイル時に無効化されている
+  プラットフォーム（Human68k など）で `false` を返す。この場合
+  `att_capture_begin()` は何もしないスタブとなり `-1` を返す。
+  `ATT_CAPTURE_DISABLED` を定義すると、任意のプラットフォームで
+  このスタブ経路を強制でき、ホストビルド上で Human68k を模擬できる。
 
 ### 並列実行
 
@@ -110,7 +115,7 @@ attest/
 |--------|------|
 | `ATT_PLATFORM_WINDOWS` | Windows（任意） |
 | `ATT_PLATFORM_POSIX` | POSIX 準拠（Linux、macOS など） |
-| `ATT_PLATFORM_HUMAN68K` | Sharp X680x0（Human68k）— シングルスレッド、タイムアウトなし |
+| `ATT_PLATFORM_HUMAN68K` | Sharp X680x0（Human68k）— シングルスレッド、タイムアウトなし、stderr キャプチャなし |
 | `ATT_COMPILER_MSVC` | Microsoft Visual C++ |
 | `ATT_COMPILER_GCC_LIKE` | GCC または Clang |
 
@@ -137,12 +142,16 @@ typedef att_jmp_buf;
 
 ### コンパイラ属性
 
-| 属性 | GCC/Clang | MSVC |
-|------|-----------|------|
-| Constructor | `__attribute__((constructor))` | `.CRT$XCU` セクション |
-| Alignment | `__attribute__((aligned(n)))` | `__declspec(align(n))` |
-| Cleanup | `__attribute__((cleanup(fn)))` | サポートなし |
-| Thread-local | `__thread` または `_Thread_local` | `__declspec(thread)` |
+| 属性 | GCC/Clang | MSVC | mcc |
+|------|-----------|------|-----|
+| Constructor | `__attribute__((constructor))` | `.CRT$XCU` セクション | `__attribute__((constructor))` |
+| Alignment | `__attribute__((aligned(n)))` | `__declspec(align(n))` | `_Alignas(n)`（mcc は `ATT_COMPILER_GCC_LIKE` ではないため、`ATT_ALIGN` は C11 形式にフォールバックする） |
+| Cleanup | `__attribute__((cleanup(fn)))` | サポートなし | `__attribute__((cleanup(fn)))` |
+| Thread-local | `__thread` または `_Thread_local` | `__declspec(thread)` | 該当なし — Human68k はスレッド非対応のため `ATT_THREAD_LOCAL` は空になり、テストコンテキストは通常のグローバル変数を使う |
+
+mcc は `attest.h` 内で `__MCC__` によって検出され、上記の constructor /
+cleanup 属性の選択にのみ使われる（`ATT_AUTOREG` / `SCOPED_INFO`）。
+`src/internal/attest_internal.h` の `ATT_COMPILER_GCC_LIKE` には含まれない。
 
 ### メモリ確保
 

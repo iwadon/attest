@@ -145,6 +145,11 @@ For embedded/legacy environments without C11:
 - Configurable feature set via compile flags
 - Reduced memory allocation for embedded use
 
+### Human68k stderr Capture
+
+- Human68k stderr capture via DOS `_DUP`/`_DUP2` (currently compiled out;
+  self-tests skip)
+
 ---
 
 ## Contributing Ideas

@@ -55,6 +55,7 @@ attest 本体と明示型アサーションマクロは C99 で動作します�
 | GCC | 5.0+ | `__attribute__((constructor))` を要求 |
 | Clang | 3.1+ | 同上 |
 | MSVC | 2015+ | 自動登録に `.CRT$XCU` セクションを使用 |
+| mcc | — | Human68k（Sharp X680x0）向け。`__attribute__((constructor))` と、C11 selftest 用の `-std=` サポートを要求 |
 
 ### 動作確認済みプラットフォーム
 
@@ -129,6 +130,17 @@ Windows 11 Pro（10.0.26200）上で Visual Studio Community 2026
 | MSVC `cl` | 19.50.35728（toolset 14.50.35717） | Win32 threads + `__declspec(thread)` | ✅ パス |
 | `clang-cl` | 20.1.8（`x86_64-pc-windows-msvc`、VS 同梱の LLVM） | C11 `<threads.h>` + `_Thread_local` | ✅ パス |
 
+#### Human68k（Sharp X680x0、mcc）
+
+mcc でクロスコンパイルし、run68 エミュレータ上で実行しました。
+`attest_selftest` は 75 件（64 passed / 11 skipped、stderr キャプチャは
+コンパイル時に無効化）、`attest_selftest_c99` は 12 件（11 passed /
+1 skipped）でパスします。
+
+| コンパイラ | バージョン | 結果 |
+|-----------|-----------|------|
+| mcc | main 649bbb1（2026-09-21） | ✅ パス |
+
 ## Human68k（Sharp X680x0）向けクロスビルド
 
 [elf2x68k](https://github.com/yunkya2/elf2x68k) ツールチェインを使って Human68k 向けにクロスコンパイルできます。
@@ -146,6 +158,21 @@ cmake --build build-h68k
 4. `PATH` 上の `m68k-xelf-gcc` の親ディレクトリ
 
 いずれも見つからない場合、インストール手順を示すエラーメッセージで configure が失敗します。
+
+### mcc を使う場合
+
+mcc コンパイラを使っても Human68k 向けにクロスコンパイルできます。
+
+```bash
+cmake -S . -B build-mcc --toolchain cmake/mcc.cmake
+cmake --build build-mcc
+```
+
+`mcc` と `mcc-ar` はデフォルトで `PATH` 上から検出されます。特定のバイナリ
+を指定するには `-DMCC_EXECUTABLE=<path>` と `-DMCC_AR_EXECUTABLE=<path>` を
+渡してください。sysroot は `mcc --print-sysroot` から自動取得されます。
+Human68k では stderr キャプチャがコンパイル時に無効化されるため、
+キャプチャに依存する selftest はスキップされます。
 
 ## ライセンス
 

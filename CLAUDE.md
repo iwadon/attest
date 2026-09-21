@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**attest** is a C11 unit testing framework inspired by GoogleTest, with automatic test registration and optional parallel test execution. The project uses `_Generic` for type dispatching and supports GCC/Clang constructor attributes for auto-registration. Thread support is auto-detected (C11 threads, POSIX pthreads, Win32 threads) with a single-threaded fallback for platforms without thread support (e.g., Human68k).
+**attest** is a C11 unit testing framework inspired by GoogleTest, with automatic test registration and optional parallel test execution. The project uses `_Generic` for type dispatching and supports GCC/Clang (and mcc, targeting Human68k) constructor attributes for auto-registration. Thread support is auto-detected (C11 threads, POSIX pthreads, Win32 threads) with a single-threaded fallback for platforms without thread support (e.g., Human68k).
 
 ## Build System
 
@@ -24,6 +24,12 @@ The project uses CMake with an out-of-source build strategy:
 - **Build all (Release)**: `cmake --build build --config Release`
 - **Run all tests**: `.\build\Debug\attest_selftest.exe` or `.\build\Release\attest_selftest.exe`
 - **Run tests via ctest**: `ctest --test-dir build -C Debug --output-on-failure`
+
+### Human68k (mcc cross-build)
+
+- **Configure build**: `cmake -S . -B build-mcc --toolchain cmake/mcc.cmake` (optionally `-DMCC_EXECUTABLE=<path> -DMCC_AR_EXECUTABLE=<path>`; `mcc`/`mcc-ar` are otherwise located on `PATH`)
+- **Build all**: `cmake --build build-mcc`
+- Cross-compiled binaries target Human68k and cannot be run on the host; run them under an emulator (e.g. run68) or on real hardware.
 
 ### Common Options
 
@@ -141,7 +147,8 @@ When implementing new features:
 
 ## Key Implementation Details
 
-- **Auto-registration**: Uses GCC/Clang `__attribute__((constructor))` for automatic test discovery. MSVC uses `.CRT$XCU` section. Fallback to manual registration via `ATT_REGISTER_TESTS()` for other compilers.
+- **Auto-registration**: Uses GCC/Clang/mcc `__attribute__((constructor))` for automatic test discovery. MSVC uses `.CRT$XCU` section. Fallback to manual registration via `ATT_REGISTER_TESTS()` for other compilers.
+- **Output capture**: `att_capture_supported()` reports whether stderr capture actually works; it's compiled out on Human68k (`att_capture_begin()` is a no-op stub returning `-1`). Define `-DATT_CAPTURE_DISABLED` on any platform to simulate this for testing.
 - **Fatal vs Non-Fatal**: `ASSERT_*` uses `longjmp` to abort the test immediately; `EXPECT_*` records failure and continues
 - **Test isolation**: Each `TEST()` runs in its own `setjmp` context. Subtests via `att_run_subtest()` run in nested contexts and don't affect parent test execution.
 - **String comparison**: `NULL` == `NULL` is true; `NULL` vs non-NULL is false; output shows `"(null)"` for NULL pointers

@@ -94,6 +94,10 @@ attest/
 - `att_capture_begin()` redirects stderr to internal buffer
 - `att_capture_end()` returns captured content
 - Non-reentrant (nesting not supported)
+- `att_capture_supported()` returns `false` on platforms where capture is
+  compiled out (e.g. Human68k), where `att_capture_begin()` is a no-op
+  stub returning `-1`. Defining `ATT_CAPTURE_DISABLED` forces the stub
+  path on any platform, for simulating Human68k on a host build.
 
 ### Parallel Execution
 
@@ -123,7 +127,7 @@ Defined in `src/internal/attest_internal.h`:
 |-------|---------|
 | `ATT_PLATFORM_WINDOWS` | Windows (any) |
 | `ATT_PLATFORM_POSIX` | POSIX-compliant (Linux, macOS, etc.) |
-| `ATT_PLATFORM_HUMAN68K` | Sharp X680x0 (Human68k) — single-threaded, no timeout |
+| `ATT_PLATFORM_HUMAN68K` | Sharp X680x0 (Human68k) — single-threaded, no timeout, no stderr capture |
 | `ATT_COMPILER_MSVC` | Microsoft Visual C++ |
 | `ATT_COMPILER_GCC_LIKE` | GCC or Clang |
 
@@ -150,12 +154,16 @@ typedef att_jmp_buf;
 
 ### Compiler Attributes
 
-| Attribute | GCC/Clang | MSVC |
-|-----------|-----------|------|
-| Constructor | `__attribute__((constructor))` | `.CRT$XCU` section |
-| Alignment | `__attribute__((aligned(n)))` | `__declspec(align(n))` |
-| Cleanup | `__attribute__((cleanup(fn)))` | Not supported |
-| Thread-local | `__thread` or `_Thread_local` | `__declspec(thread)` |
+| Attribute | GCC/Clang | MSVC | mcc |
+|-----------|-----------|------|-----|
+| Constructor | `__attribute__((constructor))` | `.CRT$XCU` section | `__attribute__((constructor))` |
+| Alignment | `__attribute__((aligned(n)))` | `__declspec(align(n))` | `_Alignas(n)` (mcc is not `ATT_COMPILER_GCC_LIKE`, so `ATT_ALIGN` falls through to the C11 form) |
+| Cleanup | `__attribute__((cleanup(fn)))` | Not supported | `__attribute__((cleanup(fn)))` |
+| Thread-local | `__thread` or `_Thread_local` | `__declspec(thread)` | Not applicable — Human68k has no thread support, so `ATT_THREAD_LOCAL` expands to nothing and test contexts use plain global variables |
+
+mcc is detected via `__MCC__` in `attest.h` only for the constructor and
+cleanup attribute selection above (`ATT_AUTOREG` / `SCOPED_INFO`); it is not
+added to `ATT_COMPILER_GCC_LIKE` in `src/internal/attest_internal.h`.
 
 ### Memory Allocation
 

@@ -55,6 +55,7 @@ attest's core library and explicit type assertion macros support C99. Type-gener
 | GCC | 5.0+ | Requires `__attribute__((constructor))` |
 | Clang | 3.1+ | Same |
 | MSVC | 2015+ | Uses `.CRT$XCU` for auto-registration |
+| mcc | — | Human68k (Sharp X680x0) target; requires `__attribute__((constructor))` and `-std=` support for the C11 self-test |
 
 ### Verified platforms
 
@@ -131,6 +132,16 @@ via the `Ninja Multi-Config` generator. `attest_selftest` reports 74 tests
 | MSVC `cl` | 19.50.35728 (toolset 14.50.35717) | Win32 threads + `__declspec(thread)` | ✅ Pass |
 | `clang-cl` | 20.1.8 (`x86_64-pc-windows-msvc`, VS-bundled LLVM) | C11 `<threads.h>` + `_Thread_local` | ✅ Pass |
 
+#### Human68k (Sharp X680x0, mcc)
+
+Cross-compiled with mcc and run under the run68 emulator. `attest_selftest`
+reports 75 tests (64 passed / 11 skipped, stderr capture compiled out) and
+`attest_selftest_c99` reports 12 tests (11 passed / 1 skipped).
+
+| Compiler | Version | Status |
+|----------|---------|--------|
+| mcc | main 649bbb1 (2026-09-21) | ✅ Pass |
+
 ## Cross-Compiling for Human68k (Sharp X680x0)
 
 attest can be cross-compiled for Human68k using the [elf2x68k](https://github.com/yunkya2/elf2x68k) toolchain:
@@ -148,6 +159,21 @@ The toolchain root is auto-detected in this order:
 4. Parent directory of `m68k-xelf-gcc` found on `PATH`
 
 If none of these resolve, configuration fails with a message pointing to the install instructions.
+
+### Using mcc
+
+attest can also be cross-compiled for Human68k with the mcc compiler:
+
+```bash
+cmake -S . -B build-mcc --toolchain cmake/mcc.cmake
+cmake --build build-mcc
+```
+
+`mcc` and `mcc-ar` are located on `PATH` by default; pass
+`-DMCC_EXECUTABLE=<path>` and `-DMCC_AR_EXECUTABLE=<path>` to point at
+specific binaries instead. The sysroot is obtained automatically from
+`mcc --print-sysroot`. Because stderr capture is compiled out on Human68k,
+the capture-dependent self-tests are skipped rather than run.
 
 ## License
 
